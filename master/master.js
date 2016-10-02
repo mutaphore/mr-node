@@ -1,3 +1,5 @@
+"use strict";
+
 const grpc = require("grpc");
 
 const PROTO_PATH = "./master_rpc.proto";

@@ -3,33 +3,35 @@
 const grpc = require("grpc");
 
 const PROTO_PATH = "./worker_rpc.proto";
-const rpc = grpc.load(PROTO_PATH).workerrpc;
-
-const master = new rpc.Master('localhost:50051', grpc.credentials.createInsecure());
 
 class Worker {
   /**
    * Create a Worker instance
-   * @param  {String} me     - worker address with format ipaddress:port
-   * @param  {String} master - master address with format ipaddress:port
+   * @param  {String} workerAddr - worker address with format ipaddress:port
+   * @param  {String} masterAddr - master address with format ipaddress:port
    */
-  constructor(me, master) {
-    this.host   = me;
-    this.master = master;
+  constructor(workerAddr, masterAddr) {
+    this.workerAddr = workerAddr;
+    this.masterAddr = masterAddr;
+
+    const rpc   = grpc.load(PROTO_PATH).masterrpc;
+    this.master = new rpc.Master(masterAddr, grpc.credentials.createInsecure());
+
     this.server = new grpc.Server();
-    this.server.bind(this.host, grpc.ServerCredentials.createInsecure());
+    this.server.bind(workerAddr, grpc.ServerCredentials.createInsecure());
     this.server.addProtoService(rpc.Worker.service, {
-      ping: ping
+      ping: _rpc_ping
     });
+
     this._start();
   }
 
   // ---- Worker RPC functions ----
 
-  // ping worker to get host info
-  ping(request, callback) {
+  // get worker host info
+  _rpc_ping(request, callback) {
     const reply = { 
-      host: this.host
+      host: this.workerAddr
     };
     return callback(null, reply);
   }
@@ -37,8 +39,8 @@ class Worker {
   // ---- Worker private functions ----
 
   // register worker with master
-  _register() {
-
+  _register(master) {
+    this.master.register();
   }
 
   // ---- Worker public functions
@@ -46,8 +48,8 @@ class Worker {
   // run the worker
   start() {
     this.server.start();
-    this._register();
-    master.ping({ host: "worker1" }, function (err, response) {
+    this._register(this.master);
+    master.ping({ host: this.workerAddr }, (err, response) => {
       if (err) {
         return console.error(err);
       }
@@ -56,10 +58,10 @@ class Worker {
   }
 }
 
+// To run worker: 
+// node worker.js workerAddr:port masterAddr:port
 if (require.main === module) {
-  // To run worker: 
-  // node worker.js workerAddr:port masterAddr:port
   const worker = new Worker(process.argv[2], process.argv[3]);
 }
 
-exports.getServer = getServer;
+exports.Worker = Worker;
