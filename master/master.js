@@ -1,9 +1,9 @@
 const grpc = require("grpc");
 
-const PROTO_PATH = "../protos/master_rpc.proto";
+const PROTO_PATH = "./master_rpc.proto";
 const rpc = grpc.load(PROTO_PATH).masterrpc;
 
-function ping(call, callback) {
+function ping(request, callback) {
   const reply = { 
     host: "master"
   };

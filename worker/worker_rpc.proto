@@ -2,18 +2,18 @@ syntax = "proto3";
 
 package workerrpc;
 
-// Worker rpc service definition:w
+// Worker rpc service definition
 service Worker {
   // Sends a ping
   rpc Ping (PingRequest) returns (PingReply) {}
 }
 
-// The request message
+// The ping request message
 message PingRequest {
   string host = 1;
 }
 
-// The response message
+// The ping response message
 message PingReply {
   string host = 1;
 }
