@@ -1,8 +1,9 @@
 "use strict";
 
-const grpc = require("grpc");
+const grpc    = require("grpc");
+const rpcFunc = require("./workerrpc");
 
-const PROTO_PATH = "./worker_rpc.proto";
+const WORKER_PROTO_PATH = "../protos/worker.proto";
 
 class Worker {
   /**
@@ -14,26 +15,18 @@ class Worker {
     this.workerAddr = workerAddr;
     this.masterAddr = masterAddr;
 
-    const rpc   = grpc.load(PROTO_PATH).masterrpc;
-    this.master = new rpc.Master(masterAddr, grpc.credentials.createInsecure());
+    // load master rpc service
+    const masterrpc   = grpc.load(WORKER_PROTO_PATH).masterrpc;
+    this.master = new masterrpc.Master(masterAddr, grpc.credentials.createInsecure());
 
+    // create worker rpc server
     this.server = new grpc.Server();
     this.server.bind(workerAddr, grpc.ServerCredentials.createInsecure());
+
+    // add rpc functions
     this.server.addProtoService(rpc.Worker.service, {
-      ping: _rpc_ping
+      ping: rpcFunc.ping.bind(this)
     });
-
-    this._start();
-  }
-
-  // ---- Worker RPC functions ----
-
-  // get worker host info
-  _rpc_ping(request, callback) {
-    const reply = { 
-      host: this.workerAddr
-    };
-    return callback(null, reply);
   }
 
   // ---- Worker private functions ----
@@ -62,6 +55,7 @@ class Worker {
 // node worker.js workerAddr:port masterAddr:port
 if (require.main === module) {
   const worker = new Worker(process.argv[2], process.argv[3]);
+  worker.start();
 }
 
 exports.Worker = Worker;

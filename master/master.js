@@ -1,36 +1,34 @@
 "use strict";
 
-const grpc = require("grpc");
+const grpc    = require("grpc");
+const rpcFunc = require("./masterrpc");
 
-const PROTO_PATH = "./master_rpc.proto";
-const rpc = grpc.load(PROTO_PATH).masterrpc;
+const WORKER_PROTO_PATH = "../protos/worker.proto";
 
-function ping(request, callback) {
-  const reply = { 
-    host: "master"
-  };
-  return callback(null, reply);
-}
+class Master {
+  constructor(masterAddr) {
+    this.masterAddr = masterAddr;
 
-function getServer() {
-  const server = new grpc.Server();
-  server.addProtoService(rpc.Master.service, {
-    ping: ping
-  });
-  return server;
-}
+    // create master rpc server
+    this.server = new grpc.Server();
+    this.server.bind(masterAddr, grpc.ServerCredentials.createInsecure());
 
-function main() {
-  const server  = getServer();
-  const port    = process.argv.length > 2 ? process.argv[2] : 50051;
-  const address = '0.0.0.0:' + port;
-  server.bind(address, grpc.ServerCredentials.createInsecure());
-  server.start();
+    // add rpc functions
+    this.server.addProtoService({
+      ping    : rpcFunc.ping.bind(this),
+      register: rpcFunc.register.bind(this)
+    });
+  }
+
+  start() {
+    this.server.start();
+  }
 }
 
 // If this is run as a script, start a server on an unused port
 if (require.main === module) {
-  main();
+  const master = new Master(process.argv[2]);
+  master.start();
 }
 
-exports.getServer = getServer;
+exports.Master = Master;

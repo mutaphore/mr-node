@@ -6,6 +6,9 @@ package masterrpc;
 service Master {
   // Sends a ping
   rpc Ping (PingRequest) returns (PingReply) {}
+  
+  // Register a worker
+  rpc Register (RegisterRequest) returns (RegisterReply) {}
 }
 
 // The ping request message
@@ -16,4 +19,12 @@ message PingRequest {
 // The ping response message
 message PingReply {
   string host = 1;
+}
+
+message RegisterRequest {
+  string host = 1;
+}
+
+message RegisterReply {
+  bool success = 1;
 }
