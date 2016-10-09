@@ -1,5 +1,7 @@
 "use strict";
 
+const grpc = require("grpc");
+
 function ping(call, callback) {
   const reply = { 
     host: this.masterAddr
@@ -9,8 +11,8 @@ function ping(call, callback) {
 
 function register(call, callback) {
   // create worker object
-  const workerId   = call.worker_id;
-  const workerAddr = call.worker_address;
+  const workerId   = call.request.worker_id;
+  const workerAddr = call.request.worker_address;
   const worker     = {
     address: workerAddr,
     rpc: new this.workerDescriptor.Worker(workerAddr, grpc.credentials.createInsecure())
@@ -19,19 +21,29 @@ function register(call, callback) {
 
   // start heartbeat
   let firstBeat = true;
-  setInterval(() => {
+  const interval = setInterval(() => {
     worker.rpc.ping({ host: this.masterAddr }, (err, resp) => {
       if (err && firstBeat) {
-        return callback(null, false);
+        // error on first heartbeat
+        console.error("Failed to connect with worker");
+        return callback(null, { success: false });
       } else if (err && !firstBeat) {
-        // remove worker from list
+        // remove worker from list and stop pinging
+        console.error("Failed to connect with worker");
         delete this.workers[workerId];
+        return clearInterval(interval);
+      } else if (!resp) {
+        // no response
+        console.error("No response from worker, closing connection");
+        delete this.workers[workerId];
+        return clearInterval(interval);
       }
+      // return success response if this is the first ping
       if (firstBeat) {
         firstBeat = false;
-        return callback(null, true)
+        return callback(null, { success: true });
       }
-      console.log(`Connected to worker ${workerId} at: ${resp.host}`);
+      console.log(`Pinging worker ${workerId} at ${workerAddr}`);
     });
   }, this.heartbeatInterval);
 }

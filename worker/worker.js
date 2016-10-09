@@ -19,18 +19,18 @@ class Worker {
     this.workerAddr = workerAddr;
     this.masterAddr = masterAddr;
 
-    const masterDescriptor = grpc.load(MASTER_PROTO_PATH).masterrpc;
-    const workerDescriptor = grpc.load(WORKER_PROTO_PATH).workerrpc;
+    this.masterDescriptor = grpc.load(MASTER_PROTO_PATH).masterrpc;
+    this.workerDescriptor = grpc.load(WORKER_PROTO_PATH).workerrpc;
 
     // load master rpc service
-    this.master = new masterDescriptor.Master(masterAddr, grpc.credentials.createInsecure());
+    this.master = new this.masterDescriptor.Master(masterAddr, grpc.credentials.createInsecure());
 
     // create worker rpc server
     this.server = new grpc.Server();
     this.server.bind(workerAddr, grpc.ServerCredentials.createInsecure());
 
     // add rpc functions
-    this.server.addProtoService(workerDescriptor.Worker.service, {
+    this.server.addProtoService(this.workerDescriptor.Worker.service, {
       ping: rpcFunc.ping.bind(this)
     });
   }
@@ -45,7 +45,8 @@ class Worker {
     };
     this.master.register(data, (err, resp) => {
       if (err) {
-        throw new Error("Failed to register with master");
+        console.log("Failed to register with master");
+        throw err;
       }
       console.log(`Connected with master: ${this.masterAddr}`);
     });
@@ -57,12 +58,6 @@ class Worker {
   start() {
     this.server.start();
     this._register();
-    this.master.ping({ host: this.workerAddr }, (err, resp) => {
-      if (err) {
-        return console.error(err);
-      }
-      console.log(response);
-    });
   }
 }
 
