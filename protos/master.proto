@@ -22,7 +22,8 @@ message PingReply {
 }
 
 message RegisterRequest {
-  string host = 1;
+  string worker_id = 1;
+  string worker_address = 2;
 }
 
 message RegisterReply {

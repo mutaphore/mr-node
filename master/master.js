@@ -3,18 +3,26 @@
 const grpc    = require("grpc");
 const rpcFunc = require("./masterrpc");
 
+const MASTER_PROTO_PATH = "../protos/master.proto";
 const WORKER_PROTO_PATH = "../protos/worker.proto";
 
 class Master {
   constructor(masterAddr) {
+    // general master configs
     this.masterAddr = masterAddr;
+    this.heartbeatInterval = 5000;
 
     // create master rpc server
     this.server = new grpc.Server();
     this.server.bind(masterAddr, grpc.ServerCredentials.createInsecure());
 
+    // worker directory: map workerId -> workerInfo object
+    this.workers = {};
+
     // add rpc functions
-    this.server.addProtoService({
+    this.masterDescriptor = grpc.load(MASTER_PROTO_PATH).masterrpc;
+    this.workerDescriptor = grpc.load(WORKER_PROTO_PATH).workerrpc;
+    this.server.addProtoService(this.masterDescriptor.Master.service, {
       ping    : rpcFunc.ping.bind(this),
       register: rpcFunc.register.bind(this)
     });
@@ -25,8 +33,12 @@ class Master {
   }
 }
 
-// If this is run as a script, start a server on an unused port
+// To run master:
+// node master masterAddr:port
 if (require.main === module) {
+  if (process.argv.length !== 3) {
+    throw new Error("Invalid number of arguments");
+  }
   const master = new Master(process.argv[2]);
   master.start();
 }
