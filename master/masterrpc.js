@@ -14,6 +14,7 @@ function register(call, callback) {
   const workerId   = call.request.worker_id;
   const workerAddr = call.request.worker_address;
   const worker     = {
+    id: workerId,
     address: workerAddr,
     rpc: new this.workerDescriptor.Worker(workerAddr, grpc.credentials.createInsecure())
   };
@@ -41,11 +42,17 @@ function register(call, callback) {
       // return success response if this is the first ping
       if (firstBeat) {
         firstBeat = false;
+        // add worker to queue on first ping
+        this.workerQueue.push(worker);
         return callback(null, { success: true });
       }
       console.log(`Pinging worker ${workerId} at ${workerAddr}`);
     });
   }, this.heartbeatInterval);
+}
+
+function jobDone(call, callback) {
+
 }
 
 module.exports = {
