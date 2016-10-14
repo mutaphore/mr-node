@@ -2,37 +2,50 @@
 
 class Reader {
   /**
-   * Config for reader
-   * @param  {Object} config
-   * @param  {String} config.sourceType
-   * @param  {Object} config.sourceOptions
-   * @param  {String} config.sourceOptions.host
-   * @param  {String} config.sourceOptions.port
-   * @param  {String} config.sourceOptions.user
-   * @param  {String} config.sourceOptions.path
+   * Construct reader
+   * @param  {Object} config               - reader configuration object
+   * @param  {String} config.sourceType    - type of source the reader will read from
+   * @param  {Object} config.sourceOptions - source-specific options
    */
   constructor(config) {
+    this.sourceType = config.sourceType;
     switch (config.sourceType) {
       case 'hdfs':
-        // TODO: check source options
+        // TODO: check source options fields
         this.client = require("webhdfs").createClient({
           host: config.sourceOptions.host,
           port: config.sourceOptions.port,
           user: config.sourceOptions.user,
-          path: config.sourceOptions.path
+          path: '/webhdfs/v1'
         });
+        this.filePath = config.sourceOptions.path
         break;
       default:
         throw new Error("Unsupported resource type " + source);
-        break;
+    }
+  }
+  /**
+   * Get a readable stream from source
+   * @return {Object} readable stream
+   */
+  createReadStream() {
+    switch (this.sourceType) {
+      case 'hdfs':
+        return this.client.createReadStream(this.filePath)
+      default:
+        throw new Error("Unsupported resource type " + source);
     }
   }
 }
 
 class MapperReader extends Reader {
+  /**
+   * Construct MapperReader
+   * @param  {Object}  config - reader configuration object
+   * @param  {Integer} mapJob - map job number
+   */
   constructor(config, mapJob) {
     super(config);
-    this.mapJob = mapJob;
+    this.mapJob = mapJob;  // map job number
   }
-
 }

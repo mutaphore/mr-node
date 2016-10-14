@@ -8,10 +8,14 @@ const MASTER_PROTO_PATH = "../protos/master.proto";
 const WORKER_PROTO_PATH = "../protos/worker.proto";
 
 class Master {
-  
-  constructor(masterAddr) {
+
+  constructor(masterAddr, nMap, nReduce) {
     // general master configs
     this.masterAddr = masterAddr;
+    this.nMap = nMap;
+    this.nReduce = nReduce;
+    this.numMapJobsDone = 0;
+    this.numReduceJobsDone = 0;
     this.heartbeatInterval = 5000;
 
     // create master rpc server
@@ -33,7 +37,11 @@ class Master {
     });
   }
 
-  _sendJob() {
+  _sendJob(operation, jobNumber) {
+    this.wor
+  }
+
+  _distributeJob() {
 
   }
 
@@ -48,7 +56,7 @@ if (require.main === module) {
   if (process.argv.length !== 3) {
     throw new Error("Invalid number of arguments");
   }
-  const master = new Master(process.argv[2]);
+  const master = new Master(process.argv[2], 1, 1);
   master.start();
 }
 

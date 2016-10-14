@@ -52,7 +52,12 @@ function register(call, callback) {
 }
 
 function jobDone(call, callback) {
-
+  if (call.request.operation === 'map') {
+    this.numMapJobsDone++;
+  } else if (call.request.operation === 'reduce') {
+    this.numReduceJobsDone++;
+  }
+  return callback(null, { success: true });
 }
 
 module.exports = {

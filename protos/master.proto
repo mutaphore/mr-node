@@ -9,6 +9,8 @@ service Master {
   
   // Register a worker
   rpc Register (RegisterRequest) returns (RegisterReply) {}
+
+  rpc JobDone (JobDoneRequest) returns (JobDoneReply) {}
 }
 
 // The ping request message
@@ -27,5 +29,14 @@ message RegisterRequest {
 }
 
 message RegisterReply {
+  bool success = 1;
+}
+
+message JobDoneRequest {
+  string operation = 1;
+  int32 job_num = 2;
+}
+
+message JobDoneReply {
   bool success = 1;
 }
