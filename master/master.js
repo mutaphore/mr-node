@@ -33,7 +33,8 @@ class Master {
     this.workerDescriptor = grpc.load(WORKER_PROTO_PATH).workerrpc;
     this.server.addProtoService(this.masterDescriptor.Master.service, {
       ping    : rpcFunc.ping.bind(this),
-      register: rpcFunc.register.bind(this)
+      register: rpcFunc.register.bind(this),
+      jobDone: rpcFunc.jobDone.bind(this)
     });
   }
 

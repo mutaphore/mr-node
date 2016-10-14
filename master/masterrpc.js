@@ -62,5 +62,6 @@ function jobDone(call, callback) {
 
 module.exports = {
   ping: ping,
-  register: register
+  register: register,
+  jobDone: jobDone
 };
