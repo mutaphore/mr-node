@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package masterrpc;
+
+service Master {
+  rpc Ping (PingRequest) returns (PingReply) {}
+}
+
+message PingRequest {
+  string host = 1;
+}
+
+message PingReply {
+  string host = 1;
+}

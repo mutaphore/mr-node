@@ -10,6 +10,7 @@
   "license": "MIT",
   "dependencies": {
     "async": "^2.1.1",
+    "config": "^1.21.0",
     "grpc": "^1.0.0",
     "uuid": "^2.0.3",
     "webhdfs": "^1.1.0",

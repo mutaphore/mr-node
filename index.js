@@ -19,11 +19,11 @@ const argv = require('yargs')
   .argv
 
 function validateArgs(callback) {
-  const serviceType = argv._[0];
+  const serviceType = argv._[0].toLowerCase();
   const masterAddr = argv._[1];
   const workerAddr = argv._[2];
-  if (serviceType !== 'master' || serviceType !== 'worker') {
-    return callback(new Error("Argument must be either 'master' or 'worker'"));
+  if (serviceType !== 'master' && serviceType !== 'worker') {
+    return callback(new Error("First argument must be 'master' or 'worker'"));
   }
   if (serviceType === 'master') { 
     if (!argv.m || !argv.n) {
@@ -53,9 +53,9 @@ function main() {
       console.error(err);
       process.exit(-1);
     }
-    const service = args.serviceType === 'master' ? 
+    const service = (args.serviceType === 'master') ? 
       new Master(args.masterAddr, args.numMapJobs, args.numReduceJobs) :
-      new Worker(args.workerAddr, args.masterAddr)
+      new Worker(args.workerAddr, args.masterAddr);
     service.start();
   });
 }

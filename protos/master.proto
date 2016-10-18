@@ -10,15 +10,14 @@ service Master {
   // Register a worker
   rpc Register (RegisterRequest) returns (RegisterReply) {}
 
+  // Send job done signal
   rpc JobDone (JobDoneRequest) returns (JobDoneReply) {}
 }
 
-// The ping request message
 message PingRequest {
   string host = 1;
 }
 
-// The ping response message
 message PingReply {
   string host = 1;
 }

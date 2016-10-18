@@ -1,12 +1,13 @@
 "use strict";
 
-const grpc = require("grpc");
-const uuid = require("uuid");
+const grpc   = require("grpc");
+const config = require("config");
+const uuid   = require("uuid");
 
 const rpcFunc = require("./workerrpc");
 
-const MASTER_PROTO_PATH = "../protos/master.proto";
-const WORKER_PROTO_PATH = "../protos/worker.proto";
+const MASTER_PROTO_PATH = "./protos/master.proto";
+const WORKER_PROTO_PATH = "./protos/worker.proto";
 
 class Worker {
   /**
@@ -19,8 +20,8 @@ class Worker {
     this.workerAddr = workerAddr;
     this.masterAddr = masterAddr;
 
-    this.masterDescriptor = grpc.load(MASTER_PROTO_PATH).masterrpc;
-    this.workerDescriptor = grpc.load(WORKER_PROTO_PATH).workerrpc;
+    this.masterDescriptor = grpc.load(config.get("proto.master")).masterrpc;
+    this.workerDescriptor = grpc.load(config.get("proto.worker")).workerrpc;
 
     // load master rpc service
     this.master = new this.masterDescriptor.Master(masterAddr, grpc.credentials.createInsecure());
@@ -46,7 +47,7 @@ class Worker {
     this.master.register(data, (err, resp) => {
       if (err) {
         console.log("Failed to register with master");
-        throw err;
+        process.exit(-1);
       }
       console.log(`Connected with master: ${this.masterAddr}`);
     });

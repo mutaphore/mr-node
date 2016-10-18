@@ -1,11 +1,9 @@
 "use strict";
 
 const grpc    = require("grpc");
+const config  = require("config");
 const async   = require("async");
 const rpcFunc = require("./masterrpc");
-
-const MASTER_PROTO_PATH = "../protos/master.proto";
-const WORKER_PROTO_PATH = "../protos/worker.proto";
 
 class Master {
 
@@ -29,36 +27,26 @@ class Master {
     this.workerQueue = [];
 
     // add rpc functions
-    this.masterDescriptor = grpc.load(MASTER_PROTO_PATH).masterrpc;
-    this.workerDescriptor = grpc.load(WORKER_PROTO_PATH).workerrpc;
+    this.masterDescriptor = grpc.load(config.get("proto.master")).masterrpc;
+    this.workerDescriptor = grpc.load(config.get("proto.worker")).workerrpc;
     this.server.addProtoService(this.masterDescriptor.Master.service, {
       ping    : rpcFunc.ping.bind(this),
       register: rpcFunc.register.bind(this),
-      jobDone: rpcFunc.jobDone.bind(this)
+      jobDone : rpcFunc.jobDone.bind(this)
     });
   }
 
   _sendJob(operation, jobNumber) {
-    this.wor
+
   }
 
-  _distributeJob() {
+  _distributeJobs() {
 
   }
 
   start() {
     this.server.start();
   }
-}
-
-// To run master:
-// node master masterAddr:port
-if (require.main === module) {
-  if (process.argv.length !== 3) {
-    throw new Error("Invalid number of arguments");
-  }
-  const master = new Master(process.argv[2], 1, 1);
-  master.start();
 }
 
 exports.Master = Master;
