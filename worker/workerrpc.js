@@ -7,11 +7,11 @@ function ping(call, callback) {
   return callback(null, reply);
 }
 
-function jobDone(call, callback) {
+function doJob(call, callback) {
 
 }
 
 module.exports = {
   ping: ping,
-  jobDone: jobDone
+  doJob: doJob
 };

@@ -49,8 +49,10 @@ class Master {
   }
 
   _distributeJobs(operation) {
-    const numJobs = 
+    const numJobs = operation === 'map' ? this.nMap : this.nReduce;
+    for (let jobNum = 1; jobNum <= numJobs; jobNum++) {
 
+    }
   }
 
   _waitForComplete(operation) {

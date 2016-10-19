@@ -33,7 +33,7 @@ class Worker {
     // add rpc functions
     this.server.addProtoService(this.workerDescriptor.Worker.service, {
       ping: rpcFunc.ping.bind(this),
-      jobDone: rpcFunc.jobDone.bind(this)
+      doJob: rpcFunc.doJob.bind(this)
     });
   }
 
