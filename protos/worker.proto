@@ -6,14 +6,24 @@ package workerrpc;
 service Worker {
   // Sends a ping
   rpc Ping (PingRequest) returns (PingReply) {}
+
+  // Do a job
+  rpc DoJob (JobRequest) return (JobReply) {}
 }
 
-// The ping request message
 message PingRequest {
   string host = 1;
 }
 
-// The ping response message
 message PingReply {
   string host = 1;
+}
+
+message JobRequest {
+  int32 job_number = 1;
+  string operation = 2;
+}
+
+message JobReply {
+  bool ok = 1;
 }

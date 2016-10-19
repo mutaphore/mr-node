@@ -28,14 +28,15 @@ message RegisterRequest {
 }
 
 message RegisterReply {
-  bool success = 1;
+  bool ok = 1;
 }
 
 message JobDoneRequest {
-  string operation = 1;
+  string worker_id = 1;
   int32 job_num = 2;
+  string operation = 3;
 }
 
 message JobDoneReply {
-  bool success = 1;
+  bool ok = 1;
 }

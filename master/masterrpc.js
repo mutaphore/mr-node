@@ -14,9 +14,9 @@ function register(call, callback) {
   const workerId   = call.request.worker_id;
   const workerAddr = call.request.worker_address;
   const worker     = {
-    id: workerId,
+    id     : workerId,
     address: workerAddr,
-    rpc: new this.workerDescriptor.Worker(workerAddr, grpc.credentials.createInsecure())
+    rpc    : new this.workerDescriptor.Worker(workerAddr, grpc.credentials.createInsecure())
   };
   this.workers[workerId] = worker;
 
@@ -44,7 +44,7 @@ function register(call, callback) {
         firstBeat = false;
         // add worker to queue on first ping
         this.workerQueue.push(worker);
-        return callback(null, { success: true });
+        return callback(null, { ok: true });
       }
       console.log(`Pinging worker ${workerId} at ${workerAddr}`);
     });
@@ -52,12 +52,16 @@ function register(call, callback) {
 }
 
 function jobDone(call, callback) {
+  const worker = this.workers[call.request.worker_id];
+  // record job done
   if (call.request.operation === 'map') {
     this.numMapJobsDone++;
   } else if (call.request.operation === 'reduce') {
     this.numReduceJobsDone++;
   }
-  return callback(null, { success: true });
+  // put worker back into queue
+  this.workerQueue.push(worker);
+  return callback(null, { ok: true });
 }
 
 module.exports = {

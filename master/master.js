@@ -36,16 +36,39 @@ class Master {
     });
   }
 
-  _sendJob(operation, jobNumber) {
+  _sendJob(jobNumber, operation, worker, callback) {
+    worker.rpc.doJob({ job_num: jobNumber, operation: operation }, (err, resp) => {
+      if (err) {
+        return callback(err);
+      }
+      if (!resp || !resp.ok) {
+        return callback(new Error("Invalid response received from worker"));
+      }
+      return callback(null);
+    });
+  }
+
+  _distributeJobs(operation) {
+    const numJobs = 
 
   }
 
-  _distributeJobs() {
+  _waitForComplete(operation) {
 
   }
 
   start() {
+    // run the server
     this.server.start();
+    // ochestrate mapreduce
+    async.series([
+      async.apply(this._distributeJobs, "map"),
+      async.apply(this._waitForComplete, "map"),
+      async.apply(this._distributeJobs, "reduce"),
+      async.apply(this._waitForComplete, "reduce")
+    ], (err, results) => {
+
+    });
   }
 }
 

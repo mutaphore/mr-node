@@ -32,7 +32,8 @@ class Worker {
 
     // add rpc functions
     this.server.addProtoService(this.workerDescriptor.Worker.service, {
-      ping: rpcFunc.ping.bind(this)
+      ping: rpcFunc.ping.bind(this),
+      jobDone: rpcFunc.jobDone.bind(this)
     });
   }
 
@@ -47,6 +48,10 @@ class Worker {
     this.master.register(data, (err, resp) => {
       if (err) {
         console.log("Failed to register with master");
+        process.exit(-1);
+      }
+      if (!resp) {
+        console.log("No response received from master");
         process.exit(-1);
       }
       console.log(`Connected with master: ${this.masterAddr}`);
