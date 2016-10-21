@@ -12,19 +12,22 @@ class Master {
     this.masterAddr = masterAddr;
     this.nMap = nMap;
     this.nReduce = nReduce;
-    this.numMapJobsDone = 0;
-    this.numReduceJobsDone = 0;
+    this.mapJobsDone = [];
+    this.reduceJobsDone = [];
+    this.mapJobCount = 0;
+    this.reduceJobCount = 0;
     this.heartbeatInterval = 5000;
+    this.state = 'map';   // map -> waitForMap -> reduce -> waitForReduce
+
+    // worker directory: workerId -> worker object
+    this.workers = {};
+
+    // queues
+    this.workerQueue = async.queue(this._dispatch, 1);
 
     // create master rpc server
     this.server = new grpc.Server();
     this.server.bind(masterAddr, grpc.ServerCredentials.createInsecure());
-
-    // worker directory: map workerId -> workerInfo object
-    this.workers = {};
-
-    // worker queues
-    this.workerQueue = [];
 
     // add rpc functions
     this.masterDescriptor = grpc.load(config.get("proto.master")).masterrpc;
@@ -36,41 +39,60 @@ class Master {
     });
   }
 
-  _sendJob(jobNumber, operation, worker, callback) {
-    worker.rpc.doJob({ job_num: jobNumber, operation: operation }, (err, resp) => {
+  _dispatch(worker, callback) {
+    // dispatch actions according to current map reduce state
+    switch (this.state) {
+      case 'map':
+        this._sendJob('map', worker, callback);
+        break;
+      case 'waitForMap':
+        this._waitForMap(callback);
+        break;
+      case 'reduce':
+        this._sendJob('reduce', worker, callback);
+        break;
+      case 'waitForReduce':
+        this._waitForReduce(callback);
+        break;
+      default:
+        // shouldn't get here
+        console.log("Invalid master state");
+        return callback();
+    }
+  }
+
+  _sendJob(operation, worker, callback) {
+    // decide on the job number for this operation
+    let jobNum = operation === 'map' ? this.mapJobCount : this.reduceJobCount;
+    jobNum++;
+    // send job request
+    worker.rpc.doJob({ job_num: jobNum, operation: operation }, (err, resp) => {
       if (err) {
         return callback(err);
       }
       if (!resp || !resp.ok) {
         return callback(new Error("Invalid response received from worker"));
       }
+      if (operation === 'map') {
+        this.mapJobCount = jobNum;
+      } else {
+        this.reduceJobCount = jobNum;
+      }
       return callback(null);
     });
   }
 
-  _distributeJobs(operation) {
-    const numJobs = operation === 'map' ? this.nMap : this.nReduce;
-    for (let jobNum = 1; jobNum <= numJobs; jobNum++) {
+  _waitForMap(callback) {
 
-    }
   }
 
-  _waitForComplete(operation) {
+  _waitForReduce(callback) {
 
   }
 
   start() {
     // run the server
     this.server.start();
-    // ochestrate mapreduce
-    async.series([
-      async.apply(this._distributeJobs, "map"),
-      async.apply(this._waitForComplete, "map"),
-      async.apply(this._distributeJobs, "reduce"),
-      async.apply(this._waitForComplete, "reduce")
-    ], (err, results) => {
-
-    });
   }
 }
 

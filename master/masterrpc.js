@@ -55,9 +55,9 @@ function jobDone(call, callback) {
   const worker = this.workers[call.request.worker_id];
   // record job done
   if (call.request.operation === 'map') {
-    this.numMapJobsDone++;
+    this.mapJobsDone.push(call.request.job_num);
   } else if (call.request.operation === 'reduce') {
-    this.numReduceJobsDone++;
+    this.reduceJobsDone.push(call.request.job_num);
   }
   // put worker back into queue
   this.workerQueue.push(worker);
