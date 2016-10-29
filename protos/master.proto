@@ -34,7 +34,7 @@ message RegisterReply {
 message JobDoneRequest {
   string worker_id = 1;
   int32 job_num = 2;
-  string operation = 3;
+  int32 operation = 3;
 }
 
 message JobDoneReply {

@@ -1,6 +1,10 @@
 "use strict";
 
 const grpc = require("grpc");
+const mr   = require("../lib/mapreduce");
+
+const STATE = mr.STATE;
+const OP    = mr.OP;
 
 function ping(call, callback) {
   const reply = { 
@@ -54,9 +58,9 @@ function register(call, callback) {
 function jobDone(call, callback) {
   const worker = this.workers[call.request.worker_id];
   // record job done
-  if (call.request.operation === 'map') {
+  if (call.request.operation === OP.MAP) {
     this.mapJobsDone.push(call.request.job_num);
-  } else if (call.request.operation === 'reduce') {
+  } else if (call.request.operation === OP.REDUCE) {
     this.reduceJobsDone.push(call.request.job_num);
   }
   // put worker back into queue

@@ -21,7 +21,7 @@ message PingReply {
 
 message JobRequest {
   int32 job_number = 1;
-  string operation = 2;
+  int32 operation = 2;
 }
 
 message JobReply {
