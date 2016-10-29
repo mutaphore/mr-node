@@ -58,6 +58,17 @@ class Worker {
     });
   }
 
+  _doMap(jobNum, fileName) {
+    const fileName = `mtmp.${call.file_name}.${jobNum}`
+    const r = new reader.Reader({
+    sourceType: 'fs',
+    sourceOptions: {
+      path: `mrtmp.${fileName}.${jobNum}`
+    } 
+  })
+
+  }
+
   // ---- Worker public functions
 
   // run the worker

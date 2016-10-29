@@ -57,7 +57,7 @@ class Master {
       case STATE.WAIT_RED:
         this.state = STATE.MERGE;
       case STATE.MERGE:
-        this.state = 
+        this.state = STATE.END;
     }
   }
 
@@ -65,16 +65,16 @@ class Master {
     // dispatch actions according to current map reduce state
     switch (this.state) {
       case STATE.MAP:
-        this._sendJob('map', worker, callback);
+        this._sendJob(OP.MAP, worker, callback);
         break;
       case STATE.WAIT_MAP:
-        this._waitForMap(callback);
+        this._waitForJobs(OP.MAP, worker, callback);
         break;
       case STATE.REDUCE:
-        this._sendJob('reduce', worker, callback);
+        this._sendJob(OP.REDUCE, worker, callback);
         break;
       case STATE.WAIT_RED:
-        this._waitForReduce(callback);
+        this._waitForJobs(OP.REDUCE, worker, callback);
         break;
       case STATE.MERGE:
         return callback();
@@ -90,8 +90,11 @@ class Master {
     let jobNum = (operation === OP.MAP ? this.mapJobCount : this.reduceJobCount) + 1;
     let n = operation === OP.MAP ? this.nMap : this.nReduce;
     if (jobNum > n) {
-      // TODO: look for jobs not yet done and send workers to work on that
+      // TODO: look for straggler jobs not yet done and send workers to work on it
+      // go to next state
       this.nextState();
+      // push this worker back to the front of queue
+      this.workerQueue.unshift(worker);
       return callback(null);
     }
     // send job request
@@ -111,16 +114,29 @@ class Master {
     });
   }
 
-  _waitForMap(callback) {
-
-  }
-
-  _waitForReduce(callback) {
-
+  _waitForJobs(operation, worker, callback) {
+    async.until(
+      () => {
+        return operation === OP.MAP ? 
+          this.mapJobsDone === this.nMap : 
+          this.reduceJobsDone === this.nReduce;
+      },
+      (callback) => {
+        // check for job done every 1 second
+        setTimeout(callback, 1000);
+      },
+      () => {
+        // go to next state
+        this.nextState();
+        // push this worker back to front of the queue
+        this.workerQueue.unshift(worker);
+        return callback();
+      }
+    );
   }
 
   _merge(callback) {
-
+        
   }
 
   start() {
