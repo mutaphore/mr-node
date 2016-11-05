@@ -1,6 +1,5 @@
 "use strict";
 
-const reader = require("../lib/reader");
 const mr = require("../lib/mapreduce");
 
 function ping(call, callback) {

@@ -7,6 +7,7 @@ const async  = require("async");
 
 const rpcFunc = require("./workerrpc");
 const mr      = require("../lib/mapreduce");
+const Reader  = require("../lib/reader");
 
 const MASTER_PROTO_PATH = "./protos/master.proto";
 const WORKER_PROTO_PATH = "./protos/worker.proto";
@@ -96,19 +97,26 @@ class Worker {
         path: this._mapFileName(fileName, jobNum)
       } 
     };
-    const r = new reader.Reader(options);
+    const r = new Reader(options);
     const readable = r.createReadStream();
+    const keyValues = [];
     readable.on('line', (line) => {
       // run map function
-      kvList = mr.mapFunc(fileName, line);
+      keyValues = keyValues.concat(mr.mapFunc(fileName, line));
+      // TODO: improve efficiency of this by piping to a transformer stream
+    });
+    readable.on('close', () => {
       // output to appropriate reducer file
-      for (let kv in kvList) {
+      const writers = [];
+      for (let i = 0; i < this.nReduce; i++) {
+        writers.push();
+      }
+      const tasks = [];
+      for (let kv in keyValues) {
         const reduceNum = this._hashCode(Object.keys(kv)[0]) % this.nReduce;
         const path = this._reduceFileName(fileName, jobNum, reduceNum);
         // TODO: writer 
       }
-    });
-    readable.on('close', () => {
       // signal to master this map job is done
       const data = {
         worker_id: this.workerId,
@@ -131,7 +139,7 @@ class Worker {
             path: this._reduceFileName(fileName, mapJobNum, jobNum)
           }
         };
-        const r = new reader.Reader(options);
+        const r = new Reader(options);
         const readable = r.createReadStream();
         readable.on('line', (line) => {
           const parts = line.split(",");
