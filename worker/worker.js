@@ -3,8 +3,10 @@
 const grpc   = require("grpc");
 const config = require("config");
 const uuid   = require("uuid");
+const async  = require("async");
 
 const rpcFunc = require("./workerrpc");
+const mr      = require("../lib/mapreduce");
 
 const MASTER_PROTO_PATH = "./protos/master.proto";
 const WORKER_PROTO_PATH = "./protos/worker.proto";
@@ -15,10 +17,12 @@ class Worker {
    * @param  {String} workerAddr - worker address with format ipaddress:port
    * @param  {String} masterAddr - master address with format ipaddress:port
    */
-  constructor(workerAddr, masterAddr) {
-    this.workerId = uuid.v4();
+  constructor(workerAddr, masterAddr, nMap, nReduce) {
+    this.workerId   = uuid.v4();
     this.workerAddr = workerAddr;
     this.masterAddr = masterAddr;
+    this.nMap       = nMap;
+    this.nReduce    = nReduce;
 
     this.masterDescriptor = grpc.load(config.get("proto.master")).masterrpc;
     this.workerDescriptor = grpc.load(config.get("proto.worker")).workerrpc;
@@ -63,12 +67,56 @@ class Worker {
     const options = {
       sourceType: 'fs',
       sourceOptions: {
-        path: `mrtmp.${fileName}.${jobNum}`
+        path: `mrtmp.${fileName}-${jobNum}`
       } 
     };
     const r = new reader.Reader(options);
     const readable = r.createReadStream();
-    readable.on('data', (line))
+    readable.on('line', (line) => {
+      mr.mapFunc(fileName, line);
+    });
+    readable.on('close', () => {
+      // signal to master this map job is done
+      const data = {
+        worker_id: this.workerId,
+        job_num: jobNum,
+        operation: mr.OP.MAP,
+        error: ""
+      };
+      this.master.jobDone(data);
+    });
+  }
+
+  _doReduce(jobNum, fileName) {
+    // iterate through all map jobs for this reducer
+    const tasks = [];
+    for (let mapJobNum = 0; mapJobNum < this.nMap; mapJobNum++) {
+      tasks.push((callback) => {
+        const options = {
+          sourceType: 'fs',
+          sourceOptions: {
+            path: `mrtmp.${fileName}-${mapJobNum}-${jobNum}`
+          }
+        };
+        const r = new reader.Reader(options);
+        const readable = r.createReadStream();
+        readable.on('line', (line) => {
+          const parts = line.split(",");
+          mr.reduceFunc(parts.shift(), parts);
+        });
+        readable.on('close', callback);
+      });
+    }
+    async.parallel(tasks, (err, results) => {
+      // signal to master this reduce job is done
+      const data = {
+        worker_id: this.workerId,
+        job_num: jobNum,
+        operation: mr.OP.REDUCE,
+        error: err ? err.message : ""
+      };
+      this.master.jobDone(data);
+    });
   }
 
   // ---- Worker public functions

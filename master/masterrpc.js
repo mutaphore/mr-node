@@ -58,13 +58,17 @@ function register(call, callback) {
 function jobDone(call, callback) {
   const worker = this.workers[call.request.worker_id];
   // record job done
-  if (call.request.operation === OP.MAP) {
-    this.mapJobsDone.push(call.request.job_num);
-  } else if (call.request.operation === OP.REDUCE) {
-    this.reduceJobsDone.push(call.request.job_num);
+  if (!call.request.error) {
+    if (call.request.operation === OP.MAP) {
+      this.mapJobsDone.push(call.request.job_num);
+    } else if (call.request.operation === OP.REDUCE) {
+      this.reduceJobsDone.push(call.request.job_num);
+    }
   }
   // put worker back into queue
-  this.workerQueue.push(worker);
+  if (worker) {
+    this.workerQueue.push(worker);
+  }
   return callback(null, { ok: true });
 }
 
