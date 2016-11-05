@@ -37,6 +37,7 @@ class Worker {
     });
   }
 
+
   // ---- Worker private functions ----
 
   // register worker with master
@@ -59,14 +60,15 @@ class Worker {
   }
 
   _doMap(jobNum, fileName) {
-    const fileName = `mtmp.${call.file_name}.${jobNum}`
-    const r = new reader.Reader({
-    sourceType: 'fs',
-    sourceOptions: {
-      path: `mrtmp.${fileName}.${jobNum}`
-    } 
-  })
-
+    const options = {
+      sourceType: 'fs',
+      sourceOptions: {
+        path: `mrtmp.${fileName}.${jobNum}`
+      } 
+    };
+    const r = new reader.Reader(options);
+    const readable = r.createReadStream();
+    readable.on('data', (line))
   }
 
   // ---- Worker public functions
