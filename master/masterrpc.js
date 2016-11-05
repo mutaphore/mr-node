@@ -64,6 +64,8 @@ function jobDone(call, callback) {
     } else if (call.request.operation === OP.REDUCE) {
       this.reduceJobsDone.push(call.request.job_num);
     }
+  } else {
+    console.log(`Worker job error: ${call.request.error}`);
   }
   // put worker back into queue
   if (worker) {

@@ -14,8 +14,10 @@ const WORKER_PROTO_PATH = "./protos/worker.proto";
 class Worker {
   /**
    * Create a Worker instance
-   * @param  {String} workerAddr - worker address with format ipaddress:port
-   * @param  {String} masterAddr - master address with format ipaddress:port
+   * @param {string} workerAddr - worker address with format ipaddress:port
+   * @param {string} masterAddr - master address with format ipaddress:port
+   * @param {number} nMap       - number of mappers
+   * @param {number} nReduce    - number of reducers
    */
   constructor(workerAddr, masterAddr, nMap, nReduce) {
     this.workerId   = uuid.v4();
@@ -63,17 +65,48 @@ class Worker {
     });
   }
 
+  // generate map file name based on job number
+  _mapFileName(fileName, mapJobNum) {
+    return `mrtmp.${fileName}-${mapJobNum}`;
+  }
+
+  // generate reduce file name based on job number
+  _reduceFileName(fileName, mapJobNum, reduceJobNum) {
+    return `mrtmp.${fileName}-${mapJobNum}-${reduceJobNum}`;
+  }
+
+  // hashes a string and returns an integer
+  _hashCode(s) {
+    let hash = 0;
+    let char;
+    let i, l;
+    if (s.length == 0) return hash;
+    for (i = 0, l = s.length; i < l; i++) {
+      char = s.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash |= 0; // Convert to 32bit integer
+    }
+    return hash;
+  }
+
   _doMap(jobNum, fileName) {
     const options = {
       sourceType: 'fs',
       sourceOptions: {
-        path: `mrtmp.${fileName}-${jobNum}`
+        path: this._mapFileName(fileName, jobNum)
       } 
     };
     const r = new reader.Reader(options);
     const readable = r.createReadStream();
     readable.on('line', (line) => {
-      mr.mapFunc(fileName, line);
+      // run map function
+      kvList = mr.mapFunc(fileName, line);
+      // output to appropriate reducer file
+      for (let kv in kvList) {
+        const reduceNum = this._hashCode(Object.keys(kv)[0]) % this.nReduce;
+        const path = this._reduceFileName(fileName, jobNum, reduceNum);
+        // TODO: writer 
+      }
     });
     readable.on('close', () => {
       // signal to master this map job is done
@@ -95,7 +128,7 @@ class Worker {
         const options = {
           sourceType: 'fs',
           sourceOptions: {
-            path: `mrtmp.${fileName}-${mapJobNum}-${jobNum}`
+            path: this._reduceFileName(fileName, mapJobNum, jobNum)
           }
         };
         const r = new reader.Reader(options);
