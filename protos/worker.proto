@@ -8,7 +8,7 @@ service Worker {
   rpc Ping (PingRequest) returns (PingReply) {}
 
   // Do a job
-  rpc DoJob (JobRequest) return (JobReply) {}
+  rpc DoJob (JobRequest) returns (JobReply) {}
 }
 
 message PingRequest {

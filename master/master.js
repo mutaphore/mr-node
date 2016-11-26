@@ -28,7 +28,7 @@ class Master {
     this.workers = {};
 
     // queues
-    this.workerQueue = async.queue(this._dispatch, 1);
+    this.workerQueue = async.queue(this._dispatch.bind(this), 1);
 
     // create master rpc server
     this.server = new grpc.Server();
@@ -89,12 +89,12 @@ class Master {
 
   _sendJob(operation, worker, callback) {
     // decide on the job number for this operation
-    const jobNum = (operation === OP.MAP ? this.mapJobCount : this.reduceJobCount) + 1;
+    const jobNum = operation === OP.MAP ? this.mapJobCount : this.reduceJobCount;
     const n = operation === OP.MAP ? this.nMap : this.nReduce;
-    if (jobNum > n) {
+    if (jobNum >= n) {
       // TODO: look for straggler jobs not yet done and send workers to work on it
       // go to next state
-      this.nextState();
+      this._nextState();
       // push this worker back to the front of queue
       this.workerQueue.unshift(worker);
       return callback(null);
@@ -113,9 +113,9 @@ class Master {
         return callback(new Error("Invalid response received from worker"));
       }
       if (operation === OP.MAP) {
-        this.mapJobCount = jobNum;
+        this.mapJobCount = jobNum + 1;
       } else {
-        this.reduceJobCount = jobNum;
+        this.reduceJobCount = jobNum + 1;
       }
       return callback(null);
     });
@@ -134,7 +134,7 @@ class Master {
       },
       () => {
         // go to next state
-        this.nextState();
+        this._nextState();
         // push this worker back to front of the queue
         this.workerQueue.unshift(worker);
         return callback();
@@ -149,6 +149,7 @@ class Master {
   start() {
     // run the server
     this.server.start();
+    console.log("Master running..");
   }
 }
 

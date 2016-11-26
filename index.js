@@ -4,9 +4,9 @@ const Master = require("./master/master").Master;
 const Worker = require("./worker/worker").Worker;
 
 const argv = require('yargs')
-  .usage('mr-node [options] <master|worker> master_host:port [worker_host:port]')
-  .example('mr-node worker localhost:5050 localhost:5051')
+  .usage(`mr-node [options] master master_host:port\nmr-node [options] worker master_host:port worker_host:port`)
   .example('mr-node master localhost:5050')
+  .example('mr-node worker localhost:5050 localhost:5051')
   .number('m')
   .number('n')
   .string('f')
@@ -19,9 +19,12 @@ const argv = require('yargs')
   .describe('n', 'number of reduce jobs')
   .describe('f', 'input filename')
   .help('h')
-  .argv
+  .argv;
 
 function validateArgs(callback) {
+  if (!argv._ || argv._.length < 2) {
+    return callback(new Error("Insufficient number of arguments. See help with -h"));
+  }
   const serviceType = argv._[0].toLowerCase();
   const masterAddr = argv._[1];
   const workerAddr = argv._[2];
@@ -50,7 +53,7 @@ function validateArgs(callback) {
     numMapJobs: argv.m,
     numReduceJobs: argv.n,
     fileName: argv.f
-  }
+  };
   return callback(null, validatedArgs);
 }
 

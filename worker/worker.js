@@ -57,11 +57,11 @@ class Worker {
     this.master.register(data, (err, resp) => {
       if (err) {
         console.log("Failed to register with master");
-        process.exit(-1);
+        process.exit(2);
       }
       if (!resp) {
         console.log("No response received from master");
-        process.exit(-1);
+        process.exit(2);
       }
       console.log(`Connected with master: ${this.masterAddr}`);
     });
@@ -87,7 +87,9 @@ class Worker {
     let hash = 0;
     let char;
     let i, l;
-    if (s.length == 0) return hash;
+    if (s.length === 0) {
+      return hash;
+    }
     for (i = 0, l = s.length; i < l; i++) {
       char = s.charCodeAt(i);
       hash = ((hash << 5) - hash) + char;
@@ -97,6 +99,7 @@ class Worker {
   }
 
   _doMap(jobNum, fileName) {
+    console.log(`working on map ${jobNum}`);
     const reader = new Reader({
       sourceType: 'fs',
       sourceOptions: {
@@ -104,7 +107,7 @@ class Worker {
       } 
     });
     const readable = reader.createReadStream();
-    const keyValues = [];
+    let keyValues = [];
     readable.on('line', (line) => {
       // run map function
       keyValues = keyValues.concat(mr.mapFunc(fileName, line));
@@ -118,13 +121,12 @@ class Worker {
         const writer = new Writer({
           targetType: 'fs',
           targetOptions: {
-            path: this._reduceFileName(fileName, jobNum, i);
+            path: this._reduceFileName(fileName, jobNum, i)
           }
         });
         const writeStream = writer.createWriteStream();
         streams.push(writeStream);
       }
-      const tasks = [];
       for (let kv in keyValues) {
         const reduceNum = this._hashCode(Object.keys(kv)[0]) % this.nReduce;
         streams[reduceNum].write(JSON.stringify(kv) + '\n');
@@ -136,15 +138,26 @@ class Worker {
       // signal to master this map job is done
       const data = {
         worker_id: this.workerId,
-        job_num: jobNum,
+        job_number: jobNum,
         operation: mr.OP.MAP,
         error: ""
       };
-      this.master.jobDone(data);
+      this.master.jobDone(data, (err, resp) => {
+        if (err) {
+          console.log("Failed to communicate with master");
+          process.exit(2);
+        }
+        if (!resp) {
+          console.log("No response received from master");
+          process.exit(2);
+        }
+        console.log(`map ${jobNum} done`);
+      });
     });
   }
 
   _doReduce(jobNum, fileName) {
+    console.log(`working on reduce ${jobNum}`);
     // iterate through all map jobs for this reducer
     const writer = new Writer({
       targetType: 'fs',
@@ -172,16 +185,26 @@ class Worker {
         readable.on('close', callback);
       });
     }
-    async.parallel(tasks, (err, results) => {
+    async.parallel(tasks, (err) => {
       writeStream.end();
       // signal to master this reduce job is done
       const data = {
         worker_id: this.workerId,
-        job_num: jobNum,
+        job_number: jobNum,
         operation: mr.OP.REDUCE,
         error: err ? err.message : ""
       };
-      this.master.jobDone(data);
+      this.master.jobDone(data, (err, resp) => {
+        if (err) {
+          console.log("Failed to communicate with master");
+          process.exit(2);
+        }
+        if (!resp) {
+          console.log("No response received from master");
+          process.exit(2);
+        }
+        console.log(`reduce ${jobNum} done`);
+      });
     });
   }
 
@@ -195,6 +218,7 @@ class Worker {
   start() {
     this.server.start();
     this._register();
+    console.log("Worker running..");
   }
 }
 

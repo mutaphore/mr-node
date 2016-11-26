@@ -60,9 +60,9 @@ function jobDone(call, callback) {
   // record job done
   if (!call.request.error) {
     if (call.request.operation === OP.MAP) {
-      this.mapJobsDone.push(call.request.job_num);
+      this.mapJobsDone.push(call.request.job_number);
     } else if (call.request.operation === OP.REDUCE) {
-      this.reduceJobsDone.push(call.request.job_num);
+      this.reduceJobsDone.push(call.request.job_number);
     }
   } else {
     console.log(`Worker job error: ${call.request.error}`);
