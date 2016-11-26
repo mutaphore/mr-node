@@ -185,6 +185,10 @@ class Worker {
     });
   }
 
+  _doMerge() {
+    // TODO...
+  }
+
   // ---- Worker public functions
 
   // run the worker
@@ -192,16 +196,6 @@ class Worker {
     this.server.start();
     this._register();
   }
-}
-
-// To run worker: 
-// node worker.js workerAddr:port masterAddr:port
-if (require.main === module) {
-  if (process.argv.length !== 4) {
-    throw new Error("Invalid number of arguments");
-  }
-  const worker = new Worker(process.argv[2], process.argv[3]);
-  worker.start();
 }
 
 exports.Worker = Worker;

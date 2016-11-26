@@ -9,12 +9,15 @@ const argv = require('yargs')
   .example('mr-node master localhost:5050')
   .number('m')
   .number('n')
-  .default('m', 5)
-  .default('n', 3)
+  .string('f')
+  .default('m', 1)
+  .default('n', 1)
   .alias('m', 'nmap')
   .alias('n', 'nreduce')
+  .alias('f', 'infile')
   .describe('m', 'number of map jobs')
   .describe('n', 'number of reduce jobs')
+  .describe('f', 'input filename')
   .help('h')
   .argv
 
@@ -26,35 +29,39 @@ function validateArgs(callback) {
     return callback(new Error("First argument must be 'master' or 'worker'"));
   }
   if (!argv.m || !argv.n) {
-    return callback(new Error("Master service must provide valid m and n options"));
+    return callback(new Error("Must provide valid m and n options"));
   }
   if (serviceType === 'master') {
     if (!masterAddr) {
       return callback(new Error("Missing master host address"));
+    }
+    if (!argv.f) {
+      return callback(new Error("Must provide input filename"));
     }
   } else if (serviceType === 'worker') {
     if (!masterAddr || !workerAddr) {
       return callback(new Error("Missing master and/or worker host address(es)"));
     }
   }
-  const args = {
+  const validatedArgs = {
     serviceType: serviceType,
     masterAddr: masterAddr,
     workerAddr: workerAddr,
     numMapJobs: argv.m,
-    numReduceJobs: argv.n
+    numReduceJobs: argv.n,
+    fileName: argv.f
   }
-  return callback(null, args);
+  return callback(null, validatedArgs);
 }
 
 function main() {
   validateArgs((err, args) => {
     if (err) {
       console.error(err);
-      process.exit(-1);
+      process.exit(1);
     }
     const service = (args.serviceType === 'master') ? 
-      new Master(args.masterAddr, args.numMapJobs, args.numReduceJobs) :
+      new Master(args.masterAddr, args.numMapJobs, args.numReduceJobs, args.fileName) :
       new Worker(args.workerAddr, args.masterAddr, args.numMapJobs, args.numReduceJobs);
     service.start();
   });

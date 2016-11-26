@@ -11,11 +11,12 @@ const OP    = mr.OP;
 
 class Master {
 
-  constructor(masterAddr, nMap, nReduce) {
+  constructor(masterAddr, nMap, nReduce, fileName) {
     // general master configs
     this.masterAddr = masterAddr;
     this.nMap = nMap;
     this.nReduce = nReduce;
+    this.fileName = fileName;
     this.mapJobsDone = [];
     this.reduceJobsDone = [];
     this.mapJobCount = 0;
@@ -77,6 +78,7 @@ class Master {
         this._waitForJobs(OP.REDUCE, worker, callback);
         break;
       case STATE.MERGE:
+        // TODO...
         return callback();
       default:
         // shouldn't get here
@@ -87,8 +89,8 @@ class Master {
 
   _sendJob(operation, worker, callback) {
     // decide on the job number for this operation
-    let jobNum = (operation === OP.MAP ? this.mapJobCount : this.reduceJobCount) + 1;
-    let n = operation === OP.MAP ? this.nMap : this.nReduce;
+    const jobNum = (operation === OP.MAP ? this.mapJobCount : this.reduceJobCount) + 1;
+    const n = operation === OP.MAP ? this.nMap : this.nReduce;
     if (jobNum > n) {
       // TODO: look for straggler jobs not yet done and send workers to work on it
       // go to next state
@@ -98,7 +100,12 @@ class Master {
       return callback(null);
     }
     // send job request
-    worker.rpc.doJob({ job_num: jobNum, operation: operation }, (err, resp) => {
+    const data = { 
+      job_number: jobNum, 
+      operation: operation,
+      file_name: this.fileName
+    };
+    worker.rpc.doJob(data, (err, resp) => {
       if (err) {
         return callback(err);
       }
@@ -136,7 +143,7 @@ class Master {
   }
 
   _merge(callback) {
-        
+    // TODO...
   }
 
   start() {
