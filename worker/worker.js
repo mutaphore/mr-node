@@ -67,14 +67,19 @@ class Worker {
     });
   }
 
-  // generate map file name based on job number
+  // generate file name to be read by mapper
   _mapFileName(fileName, mapJobNum) {
     return `mrtmp.${fileName}-${mapJobNum}`;
   }
 
-  // generate reduce file name based on job number
+  // generate file name to be read by reducer 
   _reduceFileName(fileName, mapJobNum, reduceJobNum) {
     return `mrtmp.${fileName}-${mapJobNum}-${reduceJobNum}`;
+  }
+
+  // generate file name to be read in by merger
+  _mergeFileName(fileName, reduceJobNum) {
+    return `mrtmp.${fileName}-res-${reduceJobNum}`;
   }
 
   // hashes a string and returns an integer
@@ -107,24 +112,27 @@ class Worker {
       // instead of storing key values in memory
     });
     readable.on('close', () => {
-      // output to appropriate reducer file
-      const writers = [];
+      // write to appropriate reducer file stream
+      const streams = [];
       for (let i = 0; i < this.nReduce; i++) {
-        writers.push();
+        const writer = new Writer({
+          targetType: 'fs',
+          targetOptions: {
+            path: this._reduceFileName(fileName, jobNum, i);
+          }
+        });
+        const writeStream = writer.createWriteStream();
+        streams.push(writeStream);
       }
       const tasks = [];
-      const writer = new Writer({
-        targetType: 'fs',
-        targetOptions: {
-          path: path
-        }
-      });
-      const writable = writer.createWriteStream();
       for (let kv in keyValues) {
         const reduceNum = this._hashCode(Object.keys(kv)[0]) % this.nReduce;
-        const path = this._reduceFileName(fileName, jobNum, reduceNum);
-        writable.write(JSON.stringify(kv) + '\n');
+        streams[reduceNum].write(JSON.stringify(kv) + '\n');
       }
+      // end all write streams
+      streams.forEach((s) => {
+        s.end();
+      });
       // signal to master this map job is done
       const data = {
         worker_id: this.workerId,
@@ -138,6 +146,13 @@ class Worker {
 
   _doReduce(jobNum, fileName) {
     // iterate through all map jobs for this reducer
+    const writer = new Writer({
+      targetType: 'fs',
+      targetOptions: {
+        path: this._mergeFileName(fileName, jobNum)
+      }
+    });
+    const writeStream = writer.createWriteStream();
     const tasks = [];
     for (let mapJobNum = 0; mapJobNum < this.nMap; mapJobNum++) {
       tasks.push((callback) => {
@@ -151,12 +166,14 @@ class Worker {
         const readable = r.createReadStream();
         readable.on('line', (line) => {
           const parts = line.split(",");
-          mr.reduceFunc(parts.shift(), parts);
+          const kv = mr.reduceFunc(parts.shift(), parts);
+          writeStream.write(JSON.stringify(kv));
         });
         readable.on('close', callback);
       });
     }
     async.parallel(tasks, (err, results) => {
+      writeStream.end();
       // signal to master this reduce job is done
       const data = {
         worker_id: this.workerId,
