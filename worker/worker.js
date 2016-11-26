@@ -167,6 +167,7 @@ class Worker {
     });
     const writeStream = writer.createWriteStream();
     const tasks = [];
+    const kvs = {};
     for (let mapJobNum = 0; mapJobNum < this.nMap; mapJobNum++) {
       tasks.push((callback) => {
         const options = {
@@ -178,14 +179,27 @@ class Worker {
         const r = new Reader(options);
         const readable = r.createReadStream();
         readable.on('line', (line) => {
-          const parts = line.split(",");
-          const kv = mr.reduceFunc(parts.shift(), parts);
-          writeStream.write(JSON.stringify(kv));
+          const interKv = JSON.parse(line);
+          const key = Object.keys(interKv)[0];
+          const value = interKv[key];
+          if (!kvs[key]) {
+            kvs[key] = [value];
+          } else {
+            kvs[key].push(value);
+          }
         });
         readable.on('close', callback);
       });
     }
     async.parallel(tasks, (err) => {
+      // sort the keys and run reducer function
+      const sortedKeys = Object.keys(kvs).sort();
+      sortedKeys.forEach((key) => {
+        const res = mr.reduceFunc(key, kvs[key]);
+        const kv = {};
+        kv[key] = res;
+        writeStream.write(JSON.stringify(kv) + '\n');
+      });
       writeStream.end();
       // signal to master this reduce job is done
       const data = {
