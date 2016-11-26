@@ -125,10 +125,11 @@ class Master {
     async.until(
       () => {
         return operation === OP.MAP ? 
-          this.mapJobsDone === this.nMap : 
-          this.reduceJobsDone === this.nReduce;
+          this.mapJobsDone.length === this.nMap : 
+          this.reduceJobsDone.length === this.nReduce;
       },
       (callback) => {
+        console.log("wait for jobs to complete");
         // check for job done every 1 second
         setTimeout(callback, 1000);
       },

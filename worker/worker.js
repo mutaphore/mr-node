@@ -127,10 +127,10 @@ class Worker {
         const writeStream = writer.createWriteStream();
         streams.push(writeStream);
       }
-      for (let kv in keyValues) {
+      keyValues.forEach((kv) => {
         const reduceNum = this._hashCode(Object.keys(kv)[0]) % this.nReduce;
         streams[reduceNum].write(JSON.stringify(kv) + '\n');
-      }
+      });
       // end all write streams
       streams.forEach((s) => {
         s.end();
