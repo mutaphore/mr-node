@@ -91,15 +91,15 @@ class Worker {
         path: mr.mapFileName(fileName, jobNum)
       } 
     });
-    const readable = reader.createReadStream();
+    const readStream = reader.createReadStream();
     let keyValues = [];
-    readable.on('line', (line) => {
+    readStream.on('line', (line) => {
       // run map function
       keyValues = keyValues.concat(mr.mapFunc(fileName, line));
       // TODO: improve efficiency of this by piping to a transformer stream
       // instead of storing key values in memory
     });
-    readable.on('close', () => {
+    readStream.on('close', () => {
       // write to appropriate reducer file stream
       const streams = [];
       for (let i = 0; i < this.nReduce; i++) {
@@ -155,15 +155,14 @@ class Worker {
     const kvs = {};
     for (let mapJobNum = 0; mapJobNum < this.nMap; mapJobNum++) {
       tasks.push((callback) => {
-        const options = {
+        const reader = new Reader({
           sourceType: 'fs',
           sourceOptions: {
             path: mr.reduceFileName(fileName, mapJobNum, jobNum)
           }
-        };
-        const r = new Reader(options);
-        const readable = r.createReadStream();
-        readable.on('line', (line) => {
+        });
+        const readStream = reader.createReadStream();
+        readStream.on('line', (line) => {
           const interKv = JSON.parse(line);
           const key = Object.keys(interKv)[0];
           const value = interKv[key];
@@ -173,10 +172,11 @@ class Worker {
             kvs[key].push(value);
           }
         });
-        readable.on('close', callback);
+        readStream.on('close', callback);
       });
     }
     async.parallel(tasks, (err) => {
+      // TODO: handle err properly
       // sort the keys and run reducer function
       const sortedKeys = Object.keys(kvs).sort();
       sortedKeys.forEach((key) => {

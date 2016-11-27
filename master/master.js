@@ -3,8 +3,11 @@
 const grpc    = require("grpc");
 const config  = require("config");
 const async   = require("async");
+
 const rpcFunc = require("./masterrpc");
 const mr      = require("../lib/mapreduce");
+const Reader  = require("../lib/reader");
+const Writer  = require("../lib/writer");
 
 const STATE = mr.STATE;
 const OP    = mr.OP;
@@ -146,11 +149,58 @@ class Master {
   }
 
   _merge(callback) {
-    // TODO...
+    const streams = [];
+    const tasks = [];
+    const kvs = {};
+    for (let i = 0; i < this.nReduce; i++) {
+      const reader = new Reader({
+        sourceType: 'fs',
+        sourceOptions: {
+          path: mr.mergeFileName(this.fileName, i)
+        }
+      });
+      const readStream = reader.createReadStream();
+      streams.push(readStream);
+      tasks.push((callback) => {
+        readStream.on('line', (line) => {
+          const kv = JSON.parse(line);
+          const key = Object.keys(kv)[0];
+          kvs[key] = kv[key];
+        });
+      });
+    }
+    async.parallel(tasks, (err) => {
+      // TODO: handle err properly
+      streams.forEach((s) => {
+        s.end();
+      });
+      const writer = new Writer({
+        targetType: 'fs',
+        targetOptions: {
+          path: `${this.fileName}-output`
+        }
+      });
+      const writeStream = writer.createWriteStream();
+      // sort keys
+      const sortedKeys = Object.keys(kvs).sort();
+      sortedKeys.forEach((key) => {
+        const kv = {};
+        kv[key] = kvs[key];
+        writeStream.write(JSON.stringify(kv) + '\n');
+      });
+      writeStream.end();
+      writeStream.on('finish', () => {
+        // go to next state
+        this._nextState();
+        return callback();
+      });
+    });
   }
 
   _cleanup(callback) {
     // TODO...
+    console.log("Stopping master..");
+    // process.exit(0);
   }
 
   start() {
