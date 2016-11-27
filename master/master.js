@@ -78,8 +78,10 @@ class Master {
         this._waitForJobs(OP.REDUCE, worker, callback);
         break;
       case STATE.MERGE:
-        // TODO...
-        return callback();
+        this._merge(callback);
+        break
+      case STATE.END:
+        this._cleanup(callback);
       default:
         // shouldn't get here
         console.log("Invalid master state");
@@ -144,6 +146,10 @@ class Master {
   }
 
   _merge(callback) {
+    // TODO...
+  }
+
+  _cleanup(callback) {
     // TODO...
   }
 

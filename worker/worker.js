@@ -67,21 +67,6 @@ class Worker {
     });
   }
 
-  // generate file name to be read by mapper
-  _mapFileName(fileName, mapJobNum) {
-    return `mrtmp.${fileName}-${mapJobNum}`;
-  }
-
-  // generate file name to be read by reducer 
-  _reduceFileName(fileName, mapJobNum, reduceJobNum) {
-    return `mrtmp.${fileName}-${mapJobNum}-${reduceJobNum}`;
-  }
-
-  // generate file name to be read in by merger
-  _mergeFileName(fileName, reduceJobNum) {
-    return `mrtmp.${fileName}-res-${reduceJobNum}`;
-  }
-
   // hashes a string and returns an integer
   _hashCode(s) {
     let hash = 0;
@@ -95,7 +80,7 @@ class Worker {
       hash = ((hash << 5) - hash) + char;
       hash |= 0; // Convert to 32bit integer
     }
-    return hash;
+    return Math.abs(hash);
   }
 
   _doMap(jobNum, fileName) {
@@ -103,7 +88,7 @@ class Worker {
     const reader = new Reader({
       sourceType: 'fs',
       sourceOptions: {
-        path: this._mapFileName(fileName, jobNum)
+        path: mr.mapFileName(fileName, jobNum)
       } 
     });
     const readable = reader.createReadStream();
@@ -121,7 +106,7 @@ class Worker {
         const writer = new Writer({
           targetType: 'fs',
           targetOptions: {
-            path: this._reduceFileName(fileName, jobNum, i)
+            path: mr.reduceFileName(fileName, jobNum, i)
           }
         });
         const writeStream = writer.createWriteStream();
@@ -162,7 +147,7 @@ class Worker {
     const writer = new Writer({
       targetType: 'fs',
       targetOptions: {
-        path: this._mergeFileName(fileName, jobNum)
+        path: mr.mergeFileName(fileName, jobNum)
       }
     });
     const writeStream = writer.createWriteStream();
@@ -173,7 +158,7 @@ class Worker {
         const options = {
           sourceType: 'fs',
           sourceOptions: {
-            path: this._reduceFileName(fileName, mapJobNum, jobNum)
+            path: mr.reduceFileName(fileName, mapJobNum, jobNum)
           }
         };
         const r = new Reader(options);
@@ -220,10 +205,6 @@ class Worker {
         console.log(`reduce ${jobNum} done`);
       });
     });
-  }
-
-  _doMerge() {
-    // TODO...
   }
 
   // ---- Worker public functions
