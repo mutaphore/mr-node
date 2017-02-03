@@ -1,0 +1,25 @@
+version: "3"
+
+services:
+  master:
+    container_name: master
+    build: .
+    command: ["node", "index.js", "-f", "kjv12-0", "master", "master:5000"]
+    ports:
+      - "5000:5000"
+    networks:
+      - default
+  worker1:
+    container_name: worker1
+    build: .
+    command: ["node", "index.js", "-f", "kjv12-0", "worker", "master:5000", "worker1:6000"]
+    ports:
+      - "6000:6000"
+    depends_on:
+      - master
+    networks:
+      - default
+
+networks:
+  default:
+    driver: bridge

@@ -1,4 +1,4 @@
-FROM node:v6
+FROM node:6
 
 LABEL maintainer "deweichen47@gmail.com"
 
