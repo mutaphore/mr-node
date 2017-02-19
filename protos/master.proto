@@ -29,6 +29,8 @@ message RegisterRequest {
 
 message RegisterReply {
   bool ok = 1;
+  int32 n_map = 2;
+  int32 n_reduce = 3;
 }
 
 message JobDoneRequest {

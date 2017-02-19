@@ -31,7 +31,7 @@ function register(call, callback) {
       if (err && firstBeat) {
         // error on first heartbeat
         console.error("Failed to connect with worker");
-        return callback(null, { success: false });
+        return callback(null, { ok: false });
       } else if (err && !firstBeat) {
         // remove worker from list and stop pinging
         console.error("Failed to connect with worker");
@@ -48,7 +48,11 @@ function register(call, callback) {
         firstBeat = false;
         // add worker to queue on first ping
         this.workerQueue.push(worker);
-        return callback(null, { ok: true });
+        return callback(null, { 
+          ok: true,
+          n_map: this.nMap,
+          n_reduce: this.nReduce,
+        });
       }
       console.log(`Pinging worker ${workerId} at ${workerAddr}`);
     });

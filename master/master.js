@@ -200,7 +200,7 @@ class Master {
   _cleanup(callback) {
     // TODO...
     console.log("Stopping master..");
-    // process.exit(0);
+    process.exit(0);
   }
 
   start() {

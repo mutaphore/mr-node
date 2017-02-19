@@ -16,17 +16,15 @@ const WORKER_PROTO_PATH = "./protos/worker.proto";
 class Worker {
   /**
    * Create a Worker instance
-   * @param {string} workerAddr - worker address with format ipaddress:port
    * @param {string} masterAddr - master address with format ipaddress:port
-   * @param {number} nMap       - number of mappers
-   * @param {number} nReduce    - number of reducers
+   * @param {string} workerAddr - worker address with format ipaddress:port
    */
-  constructor(workerAddr, masterAddr, nMap, nReduce) {
+  constructor(masterAddr, workerAddr) {
     this.workerId   = uuid.v4();
     this.workerAddr = workerAddr;
     this.masterAddr = masterAddr;
-    this.nMap       = nMap;
-    this.nReduce    = nReduce;
+    this.nMap       = 1;
+    this.nReduce    = 1;
 
     this.masterDescriptor = grpc.load(config.get("proto.master")).masterrpc;
     this.workerDescriptor = grpc.load(config.get("proto.worker")).workerrpc;
@@ -63,6 +61,12 @@ class Worker {
         console.log("No response received from master");
         process.exit(2);
       }
+      if (!resp.ok || resp.ok != true) {
+        console.log("Master error");
+        process.exit(2);
+      }
+      this.nMap = resp.n_map;
+      this.nReduce = resp.n_reduce;
       console.log(`Connected with master: ${this.masterAddr}`);
     });
   }

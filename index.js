@@ -4,8 +4,8 @@ const Master = require("./master/master").Master;
 const Worker = require("./worker/worker").Worker;
 
 const argv = require('yargs')
-  .usage(`mr-node [options] master master_host:port\nmr-node [options] worker master_host:port worker_host:port`)
-  .example('mr-node master localhost:5050')
+  .usage(`mr-node master [options] master_host:port\nmr-node worker [options] master_host:port worker_host:port`)
+  .example('mr-node master -f input.txt localhost:5050')
   .example('mr-node worker localhost:5050 localhost:5051')
   .number('m')
   .number('n')
@@ -31,10 +31,10 @@ function validateArgs(callback) {
   if (serviceType !== 'master' && serviceType !== 'worker') {
     return callback(new Error("First argument must be 'master' or 'worker'"));
   }
-  if (!argv.m || !argv.n) {
-    return callback(new Error("Must provide valid m and n options"));
-  }
   if (serviceType === 'master') {
+    if (!argv.m || !argv.n) {
+      return callback(new Error("Must provide valid m and n options"));
+    }
     if (!masterAddr) {
       return callback(new Error("Missing master host address"));
     }
@@ -65,7 +65,7 @@ function main() {
     }
     const service = (args.serviceType === 'master') ? 
       new Master(args.masterAddr, args.numMapJobs, args.numReduceJobs, args.fileName) :
-      new Worker(args.workerAddr, args.masterAddr, args.numMapJobs, args.numReduceJobs);
+      new Worker(args.masterAddr, args.workerAddr);
     service.start();
   });
 }
