@@ -12,6 +12,9 @@ service Master {
 
   // Send job done signal
   rpc JobDone (JobDoneRequest) returns (JobDoneReply) {}
+
+  // Get map data for a split
+  rpc GetMapSplit (GetMapSplitRequest) return (GetMapSplitReply) {}
 }
 
 message PingRequest {
@@ -42,4 +45,12 @@ message JobDoneRequest {
 
 message JobDoneReply {
   bool ok = 1;
+}
+
+message GetMapSplitRequest {
+  int32 split_number = 1;
+}
+
+message GetMapSplitReply {
+  string data = 1;
 }

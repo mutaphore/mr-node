@@ -6,6 +6,7 @@ const async   = require("async");
 
 const rpcFunc = require("./masterrpc");
 const mr      = require("../lib/mapreduce");
+const utils   = require("../lib/utils");
 const Reader  = require("../lib/reader");
 const Writer  = require("../lib/writer");
 
@@ -41,9 +42,10 @@ class Master {
     this.masterDescriptor = grpc.load(config.get("proto.master")).masterrpc;
     this.workerDescriptor = grpc.load(config.get("proto.worker")).workerrpc;
     this.server.addProtoService(this.masterDescriptor.Master.service, {
-      ping    : rpcFunc.ping.bind(this),
+      ping: rpcFunc.ping.bind(this),
       register: rpcFunc.register.bind(this),
-      jobDone : rpcFunc.jobDone.bind(this)
+      jobDone: rpcFunc.jobDone.bind(this),
+      getMapSplit: rpcFunc.getMapSplit.bind(this),
     });
   }
 

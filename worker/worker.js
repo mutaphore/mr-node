@@ -1,5 +1,6 @@
 "use strict";
 
+const _      = require("lodash");
 const grpc   = require("grpc");
 const config = require("config");
 const uuid   = require("uuid");
@@ -23,8 +24,8 @@ class Worker {
     this.workerId   = uuid.v4();
     this.workerAddr = workerAddr;
     this.masterAddr = masterAddr;
-    this.nMap       = 1;
-    this.nReduce    = 1;
+    this.nMap       = null;
+    this.nReduce    = null;
 
     this.masterDescriptor = grpc.load(config.get("proto.master")).masterrpc;
     this.workerDescriptor = grpc.load(config.get("proto.worker")).workerrpc;
@@ -63,6 +64,11 @@ class Worker {
       }
       if (!resp.ok || resp.ok != true) {
         console.log("Master error");
+        process.exit(2);
+      }
+      if (!_.isInteger(resp.n_map) || _.isInteger(resp.n_reduce) || 
+        resp.n_map <= 0 || resp.n_reduce <= 0) {
+        console.log("Invalid nmap and/or nreduce values");
         process.exit(2);
       }
       this.nMap = resp.n_map;

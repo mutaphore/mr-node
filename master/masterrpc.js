@@ -78,8 +78,13 @@ function jobDone(call, callback) {
   return callback(null, { ok: true });
 }
 
+function getMapSplit(call, callback) {
+  mr.
+}
+
 module.exports = {
-  ping: ping,
-  register: register,
-  jobDone: jobDone
+  ping,
+  register,
+  jobDone,
+  getMapSplit,
 };
