@@ -1,7 +1,8 @@
 "use strict";
 
-const grpc = require("grpc");
-const mr   = require("../lib/mapreduce");
+const grpc = require('grpc');
+const fs = require('fs');
+const mr = require('../lib/mapreduce');
 
 const STATE = mr.STATE;
 const OP    = mr.OP;
@@ -78,8 +79,28 @@ function jobDone(call, callback) {
   return callback(null, { ok: true });
 }
 
-function getMapSplit(call, callback) {
-  mr.
+function getMapSplit(call) {
+  const worker = this.workers[call.request.worker_id];
+  const jobNum = call.job_number;
+  // check if we're still doing Map, if not return error
+  if (this.state !== STATE.map) {
+    console.error('Not in Map state');
+    call.end();
+    // TODO: handle error appropriately
+    this.workerQueue.push(worker)
+    return;
+  }
+  let start;
+  let end;
+  if (jobNum === 0) {
+    end = this.splits[0];
+  } else if (jobNum === this.nMap-1) {
+    start = this.splits[jobNum];
+  } else {
+    start = this.splits[jobNum-1] + 1;
+    end = this.splits[jobNum];
+  }
+  const readStream = fs.createReadStream(this.fileName);
 }
 
 module.exports = {

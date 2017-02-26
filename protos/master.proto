@@ -14,7 +14,7 @@ service Master {
   rpc JobDone (JobDoneRequest) returns (JobDoneReply) {}
 
   // Get map data for a split
-  rpc GetMapSplit (GetMapSplitRequest) return (GetMapSplitReply) {}
+  rpc GetMapSplit (GetMapSplitRequest) return (stream MapSplitData) {}
 }
 
 message PingRequest {
@@ -48,9 +48,10 @@ message JobDoneReply {
 }
 
 message GetMapSplitRequest {
-  int32 split_number = 1;
+  string worker_id = 1;
+  int32 job_number = 2;
 }
 
-message GetMapSplitReply {
-  string data = 1;
+message MapSplitData {
+  string line = 2;
 }

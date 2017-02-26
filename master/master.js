@@ -21,8 +21,9 @@ class Master {
     this.nMap = nMap;
     this.nReduce = nReduce;
     this.fileName = fileName;
-    this.mapJobsDone = [];
-    this.reduceJobsDone = [];
+    this.mapJobsDone = [];  // number of map jobs completed
+    this.reduceJobsDone = [];  // number of reduce jobs completed
+    this.splits = [];  // file splits for map by line number
     this.mapJobCount = 0;
     this.reduceJobCount = 0;
     this.heartbeatInterval = 5000;
@@ -205,10 +206,19 @@ class Master {
     process.exit(0);
   }
 
-  start() {
-    // run the server
-    this.server.start();
-    console.log("Master running..");
+  start(callback) {
+    async.parallel([
+      async.apply(utils.splitFileByLines, this.fileName, this.nMap)
+    ], (err, res) => {
+      if (err) {
+        return callback(err);
+      }
+      this.splits = res[0];
+      // run the server
+      this.server.start();
+      console.log("Master running..");
+      return callback(null);
+    })
   }
 }
 

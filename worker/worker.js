@@ -93,7 +93,60 @@ class Worker {
     return Math.abs(hash);
   }
 
-  _doMap(jobNum, fileName) {
+  _doMapByStream(jobNum, fileName) {
+    console.log(`working on map ${jobNum}`);
+    const data = {
+      worker_id: this.workerId,
+      job_number: jobNum,
+    };
+    const rpcStream = this.master.getMapSplit(data);
+    let keyValues = [];
+    rpcStream.on('data', (split) => {
+      keyValues = keyValues.concat(mr.mapFunc(fileName, split.line));
+    });
+    rpcStream.on('end', () => {
+      // write to appropriate reducer file stream
+      const streams = [];
+      for (let i = 0; i < this.nReduce; i++) {
+        const writer = new Writer({
+          targetType: 'fs',
+          targetOptions: {
+            path: mr.reduceFileName(fileName, jobNum, i)
+          }
+        });
+        const writeStream = writer.createWriteStream();
+        streams.push(writeStream);
+      }
+      keyValues.forEach((kv) => {
+        const reduceNum = this._hashCode(Object.keys(kv)[0]) % this.nReduce;
+        streams[reduceNum].write(JSON.stringify(kv) + '\n');
+      });
+      // end all write streams
+      streams.forEach((s) => {
+        s.end();
+      });
+      // signal to master this map job is done
+      const data = {
+        worker_id: this.workerId,
+        job_number: jobNum,
+        operation: mr.OP.MAP,
+        error: ""
+      };
+      this.master.jobDone(data, (err, resp) => {
+        if (err) {
+          console.log("Failed to communicate with master");
+          process.exit(2);
+        }
+        if (!resp) {
+          console.log("No response received from master");
+          process.exit(2);
+        }
+        console.log(`map ${jobNum} done`);
+      });
+    });
+  }
+
+  _doMapByFileName(jobNum, fileName) {
     console.log(`working on map ${jobNum}`);
     const reader = new Reader({
       sourceType: 'fs',

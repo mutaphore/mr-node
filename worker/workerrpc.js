@@ -15,7 +15,8 @@ function doJob(call, callback) {
   const fileName = call.request.file_name;
   callback(null, { ok: true });
   if (operation === mr.OP.MAP) {
-    this._doMap(jobNum, fileName);
+    // this._doMapByFileName(jobNum, fileName);
+    this._doMapByStream(jobNum, fileName);
   } else {
     this._doReduce(jobNum, fileName);
   }
