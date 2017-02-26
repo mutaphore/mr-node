@@ -2,6 +2,7 @@
 
 const grpc = require('grpc');
 const fs = require('fs');
+const split = require('split');
 const mr = require('../lib/mapreduce');
 
 const STATE = mr.STATE;
@@ -86,21 +87,23 @@ function getMapSplit(call) {
   if (this.state !== STATE.map) {
     console.error('Not in Map state');
     call.end();
-    // TODO: handle error appropriately
+    // TODO: handle error gracefully
     this.workerQueue.push(worker)
     return;
   }
-  let start;
-  let end;
-  if (jobNum === 0) {
-    end = this.splits[0];
-  } else if (jobNum === this.nMap-1) {
-    start = this.splits[jobNum];
-  } else {
-    start = this.splits[jobNum-1] + 1;
-    end = this.splits[jobNum];
-  }
-  const readStream = fs.createReadStream(this.fileName);
+  fs.createReadStream(this.fileName, this.fileSplits[jobNum])
+    .pipe(split())  // split file by lines
+    .on('data', (line) => {
+      call.write({ line });
+    })
+    .on('end', () => {
+      call.end();
+    })
+    .on('error', (err) => {
+      // TODO: handle error gracefully
+      console.error(err);
+      call.end();
+    });
 }
 
 module.exports = {

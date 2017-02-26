@@ -23,7 +23,7 @@ class Master {
     this.fileName = fileName;
     this.mapJobsDone = [];  // number of map jobs completed
     this.reduceJobsDone = [];  // number of reduce jobs completed
-    this.splits = [];  // file splits for map by line number
+    this.fileSplits = [];  // mapper file splits by byte number
     this.mapJobCount = 0;
     this.reduceJobCount = 0;
     this.heartbeatInterval = 5000;
@@ -213,7 +213,7 @@ class Master {
       if (err) {
         return callback(err);
       }
-      this.splits = res[0];
+      this.fileSplits = res[0];
       // run the server
       this.server.start();
       console.log("Master running..");
