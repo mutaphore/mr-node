@@ -16,13 +16,21 @@ function doJob(call, callback) {
   callback(null, { ok: true });
   if (operation === mr.OP.MAP) {
     // this._doMapByFileName(jobNum, fileName);
-    this._doMapByStream(jobNum, fileName);
+    this._doMapByRpcStream(jobNum, fileName);
   } else {
     this._doReduce(jobNum, fileName);
   }
 }
 
+function getInterKeyValues(call, callback) {
+  const mapJobNum = call.request.mapper_number;
+  const reduceJobNum = call.request.reducer_number;
+  // check if intermediate local file exists
+  
+}
+
 module.exports = {
-  ping: ping,
-  doJob: doJob
+  ping,
+  doJob,
+  getInterKeyValues,
 };

@@ -6,7 +6,7 @@ const split = require('split');
 const mr = require('../lib/mapreduce');
 
 const STATE = mr.STATE;
-const OP    = mr.OP;
+const OP = mr.OP;
 
 function ping(call, callback) {
   const reply = { 
@@ -17,12 +17,12 @@ function ping(call, callback) {
 
 function register(call, callback) {
   // create worker object
-  const workerId   = call.request.worker_id;
+  const workerId = call.request.worker_id;
   const workerAddr = call.request.worker_address;
-  const worker     = {
-    id     : workerId,
+  const worker = {
+    id: workerId,
     address: workerAddr,
-    rpc    : new this.workerDescriptor.Worker(workerAddr, grpc.credentials.createInsecure())
+    rpc: new this.workerDescriptor.Worker(workerAddr, grpc.credentials.createInsecure())
   };
   this.workers[workerId] = worker;
 
@@ -66,9 +66,15 @@ function jobDone(call, callback) {
   // record job done
   if (!call.request.error) {
     if (call.request.operation === OP.MAP) {
-      this.mapJobsDone.push(call.request.job_number);
+      this.mapJobsDone.push({
+        workerId: call.request.worker_id,
+        jobNum: call.request.job_number,
+      });
     } else if (call.request.operation === OP.REDUCE) {
-      this.reduceJobsDone.push(call.request.job_number);
+      this.reduceJobsDone.push({
+        workerId: call.request.worker_id,
+        jobNum: call.request.job_number,
+      });
     }
   } else {
     console.log(`Worker job error: ${call.request.error}`);
@@ -84,7 +90,7 @@ function getMapSplit(call) {
   const worker = this.workers[call.request.worker_id];
   const jobNum = call.job_number;
   // check if we're still doing Map, if not return error
-  if (this.state !== STATE.map) {
+  if (this.state !== STATE.MAP) {
     console.error('Not in Map state');
     call.end();
     // TODO: handle error gracefully
@@ -106,9 +112,41 @@ function getMapSplit(call) {
     });
 }
 
+function getWorkerInfo(call, callback) {
+  let table = {};
+  const mapperAddrs = [];
+  const reducerAddrs = [];
+  this.mapJobsDone.forEach((job) => {
+    table[job.jobNum] = this.workers[job.workerId].address;
+  });
+  for (let i = 0; i < this.nMap; i++) {
+    if (table[i]) {
+      mapperAddrs.push(table[i]);
+    } else {
+      mapperAddrs.push(null);
+    }
+  }
+  table = {};
+  this.reduceJobsDone.forEach((job) => {
+    table[job.jobNum] = this.workers[job.workerId].address;
+  });
+  for (let i = 0; i < this.nReduce; i++) {
+    if (table[i]) {
+      reducerAddrs.push(table[i]);
+    } else {
+      reducerAddrs.push(null);
+    }
+  }
+  return callback(null, {
+    mapper_addresses: mapperAddrs,
+    reducer_addresses: reducerAddrs,
+  });
+}
+
 module.exports = {
   ping,
   register,
   jobDone,
   getMapSplit,
+  getWorkerInfo,
 };

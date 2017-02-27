@@ -47,6 +47,7 @@ class Master {
       register: rpcFunc.register.bind(this),
       jobDone: rpcFunc.jobDone.bind(this),
       getMapSplit: rpcFunc.getMapSplit.bind(this),
+      getWorkerInfo: rpcFunc.getWorkerInfo.bind(this),
     });
   }
 
@@ -207,18 +208,16 @@ class Master {
   }
 
   start(callback) {
-    async.parallel([
-      async.apply(utils.splitFileByLines, this.fileName, this.nMap)
-    ], (err, res) => {
+    utils.splitFileByLines(this.fileName, this.nMap, (err, fileSplits) => {
       if (err) {
         return callback(err);
       }
-      this.fileSplits = res[0];
+      this.fileSplits = fileSplits;
       // run the server
       this.server.start();
       console.log("Master running..");
-      return callback(null);
-    })
+      return callback(null, this);
+    });
   }
 }
 

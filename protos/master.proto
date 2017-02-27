@@ -14,7 +14,10 @@ service Master {
   rpc JobDone (JobDoneRequest) returns (JobDoneReply) {}
 
   // Get map data for a split
-  rpc GetMapSplit (GetMapSplitRequest) return (stream MapSplitData) {}
+  rpc GetMapSplit (GetMapSplitRequest) returns (stream MapSplitData) {}
+
+  // Get worker info such as host addresses, etc.
+  rpc GetWorkerInfo () returns (GetWorkerInfoReply) {}
 }
 
 message PingRequest {
@@ -53,5 +56,10 @@ message GetMapSplitRequest {
 }
 
 message MapSplitData {
-  string line = 2;
+  string line = 1;
+}
+
+message GetWorkerInfoReply {
+  repeated string mapper_addresses = 1;
+  repeated string reducer_addresses = 2;
 }

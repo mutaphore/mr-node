@@ -9,6 +9,9 @@ service Worker {
 
   // Do a job
   rpc DoJob (JobRequest) returns (JobReply) {}
+
+  // Get intermediate k/v pairs
+  rpc GetInterKeyValues (GetInterKeyValuesRequest) returns (stream InterKeyValue) {}
 }
 
 message PingRequest {
@@ -27,4 +30,13 @@ message JobRequest {
 
 message JobReply {
   bool ok = 1;
+}
+
+message GetInterKeyValuesRequest {
+  int32 mapper_number = 1;
+  int32 reducer_number = 2;
+}
+
+message InterKeyValue {
+  string key_value = 1;
 }

@@ -66,7 +66,7 @@ class Worker {
         console.log("Master error");
         process.exit(2);
       }
-      if (!_.isInteger(resp.n_map) || _.isInteger(resp.n_reduce) || 
+      if (!_.isInteger(resp.n_map) || !_.isInteger(resp.n_reduce) || 
         resp.n_map <= 0 || resp.n_reduce <= 0) {
         console.log("Invalid nmap and/or nreduce values");
         process.exit(2);
@@ -93,7 +93,7 @@ class Worker {
     return Math.abs(hash);
   }
 
-  _doMapByStream(jobNum, fileName) {
+  _doMapByRpcStream(jobNum, fileName) {
     console.log(`working on map ${jobNum}`);
     const data = {
       worker_id: this.workerId,

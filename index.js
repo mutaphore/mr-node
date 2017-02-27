@@ -66,7 +66,12 @@ function main() {
     const service = (args.serviceType === 'master') ? 
       new Master(args.masterAddr, args.numMapJobs, args.numReduceJobs, args.fileName) :
       new Worker(args.masterAddr, args.workerAddr);
-    service.start();
+    service.start((err) => {
+      if (err) {
+        console.error(err);
+        process.exit(1);
+      }
+    });
   });
 }
 
