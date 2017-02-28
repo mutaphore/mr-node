@@ -88,7 +88,7 @@ function jobDone(call, callback) {
 
 function getMapSplit(call) {
   const worker = this.workers[call.request.worker_id];
-  const jobNum = call.job_number;
+  const jobNum = call.request.job_number;
   // check if we're still doing Map, if not return error
   if (this.state !== STATE.MAP) {
     console.error('Not in Map state');
@@ -97,6 +97,9 @@ function getMapSplit(call) {
     this.workerQueue.push(worker)
     return;
   }
+  console.log('DEBUG');
+  console.log(this.fileSplits);
+  console.log(jobNum);
   fs.createReadStream(this.fileName, this.fileSplits[jobNum])
     .pipe(split())  // split file by lines
     .on('data', (line) => {

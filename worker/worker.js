@@ -228,7 +228,7 @@ class Worker {
           };
           const rpcStream = mapper.getInterKeyValues(data);
           rpcStream.on('data', (chunk) => {
-            console.log(chunk.key_value);
+            // skip invalid strings
             if (!chunk.key_value) {
               return;
             }
