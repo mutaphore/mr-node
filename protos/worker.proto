@@ -35,6 +35,7 @@ message JobReply {
 message GetInterKeyValuesRequest {
   int32 mapper_number = 1;
   int32 reducer_number = 2;
+  string file_name = 3;
 }
 
 message InterKeyValue {

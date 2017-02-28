@@ -123,7 +123,7 @@ function getWorkerInfo(call, callback) {
     if (table[i]) {
       mapperAddrs.push(table[i]);
     } else {
-      mapperAddrs.push(null);
+      mapperAddrs.push('');
     }
   }
   table = {};
@@ -134,7 +134,7 @@ function getWorkerInfo(call, callback) {
     if (table[i]) {
       reducerAddrs.push(table[i]);
     } else {
-      reducerAddrs.push(null);
+      reducerAddrs.push('');
     }
   }
   return callback(null, {

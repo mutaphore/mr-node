@@ -21,11 +21,11 @@ class Worker {
    * @param {string} workerAddr - worker address with format ipaddress:port
    */
   constructor(masterAddr, workerAddr) {
-    this.workerId   = uuid.v4();
+    this.workerId = uuid.v4();
     this.workerAddr = workerAddr;
     this.masterAddr = masterAddr;
-    this.nMap       = null;
-    this.nReduce    = null;
+    this.nMap = null;
+    this.nReduce = null;
 
     this.masterDescriptor = grpc.load(config.get("proto.master")).masterrpc;
     this.workerDescriptor = grpc.load(config.get("proto.worker")).workerrpc;
@@ -40,7 +40,8 @@ class Worker {
     // add rpc functions
     this.server.addProtoService(this.workerDescriptor.Worker.service, {
       ping: rpcFunc.ping.bind(this),
-      doJob: rpcFunc.doJob.bind(this)
+      doJob: rpcFunc.doJob.bind(this),
+      getInterKeyValues: rpcFunc.getInterKeyValues.bind(this),
     });
   }
 
@@ -204,7 +205,86 @@ class Worker {
     });
   }
 
-  _doReduce(jobNum, fileName) {
+  _doReduceByRpcStream(jobNum, fileName) {
+    console.log(`working on reduce ${jobNum}`);
+    this.master.getWorkerInfo({}, (err, resp) => {
+      if (err) {
+        console.error(err);
+        process.exit(2);
+      }
+      const mapperAddrs = resp.mapper_addresses;
+      // iterate through all map jobs for this reducer
+      
+      const tasks = [];
+      const kvs = {};
+      for (let mapJobNum = 0; mapJobNum < this.nMap; mapJobNum++) {
+        // TODO: check if mapper is ready for transfer
+        tasks.push((callback) => {
+          const mapper = new this.workerDescriptor.Worker(mapperAddrs[mapJobNum], grpc.credentials.createInsecure())
+          const data = {
+            mapper_number: mapJobNum,
+            reducer_number: jobNum,
+            file_name: fileName,
+          };
+          const rpcStream = mapper.getInterKeyValues(data);
+          rpcStream.on('data', (chunk) => {
+            console.log(chunk.key_value);
+            if (!chunk.key_value) {
+              return;
+            }
+            const interKv = JSON.parse(chunk.key_value);
+            const key = Object.keys(interKv)[0];
+            const value = interKv[key];
+            if (!kvs[key]) {
+              kvs[key] = [value];
+            } else {
+              kvs[key].push(value);
+            }
+          });
+          rpcStream.on('end', callback);
+        });
+      }
+      async.parallel(tasks, (err) => {
+        // TODO: handle err properly
+        // sort the keys and run reducer function
+        const writer = new Writer({
+          targetType: 'fs',
+          targetOptions: {
+            path: mr.mergeFileName(fileName, jobNum)
+          }
+        });
+        const writeStream = writer.createWriteStream();
+        const sortedKeys = Object.keys(kvs).sort();
+        sortedKeys.forEach((key) => {
+          const res = mr.reduceFunc(key, kvs[key]);
+          const kv = {};
+          kv[key] = res;
+          writeStream.write(JSON.stringify(kv) + '\n');
+        });
+        writeStream.end();
+        // signal to master this reduce job is done
+        const data = {
+          worker_id: this.workerId,
+          job_number: jobNum,
+          operation: mr.OP.REDUCE,
+          error: err ? err.message : ""
+        };
+        this.master.jobDone(data, (err, resp) => {
+          if (err) {
+            console.error(err);
+            process.exit(2);
+          }
+          if (!resp) {
+            console.log("No response received from master");
+            process.exit(2);
+          }
+          console.log(`reduce ${jobNum} done`);
+        });
+      });
+    });
+  }
+
+  _doReduceByFileName(jobNum, fileName) {
     console.log(`working on reduce ${jobNum}`);
     // iterate through all map jobs for this reducer
     const writer = new Writer({
