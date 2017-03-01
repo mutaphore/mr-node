@@ -1,8 +1,10 @@
 "use strict";
 
-const grpc    = require("grpc");
-const config  = require("config");
-const async   = require("async");
+const fs = require('fs');
+const grpc = require('grpc');
+const config = require('config');
+const async = require('async');
+const split = require('split');
 
 const rpcFunc = require("./masterrpc");
 const mr      = require("../lib/mapreduce");
@@ -64,8 +66,14 @@ class Master {
         break;
       case STATE.WAIT_RED:
         this.state = STATE.MERGE;
+        break;
       case STATE.MERGE:
         this.state = STATE.END;
+        break;
+      default:
+        // shouldn't get here
+        console.log("Invalid master state");
+        process.exit(1);
     }
   }
 
@@ -86,9 +94,7 @@ class Master {
         break;
       case STATE.MERGE:
         this._merge(callback);
-        break
-      case STATE.END:
-        this._cleanup(callback);
+        break;
       default:
         // shouldn't get here
         console.log("Invalid master state");
@@ -153,38 +159,35 @@ class Master {
   }
 
   _merge(callback) {
+    console.log("Merging result files");
     const streams = [];
     const tasks = [];
     const kvs = {};
     for (let i = 0; i < this.nReduce; i++) {
-      const reader = new Reader({
-        sourceType: 'fs',
-        sourceOptions: {
-          path: mr.mergeFileName(this.fileName, i)
-        }
-      });
-      const readStream = reader.createReadStream();
+      const readStream = fs.createReadStream(mr.mergeFileName(this.fileName, i));
       streams.push(readStream);
       tasks.push((callback) => {
-        readStream.on('line', (line) => {
-          const kv = JSON.parse(line);
-          const key = Object.keys(kv)[0];
-          kvs[key] = kv[key];
-        });
+        readStream
+          .pipe(split())
+          .on('data', (line) => {
+            if (!line) {
+              return;
+            }
+            const kv = JSON.parse(line);
+            const key = Object.keys(kv)[0];
+            kvs[key] = kv[key];
+          })
+          .on('end', () => {
+            callback()
+          })
+          .on('error', (err) => {
+            callback(err);
+          })
       });
     }
     async.parallel(tasks, (err) => {
       // TODO: handle err properly
-      streams.forEach((s) => {
-        s.end();
-      });
-      const writer = new Writer({
-        targetType: 'fs',
-        targetOptions: {
-          path: `${this.fileName}-output`
-        }
-      });
-      const writeStream = writer.createWriteStream();
+      const writeStream = fs.createWriteStream(`${this.fileName}-output`);
       // sort keys
       const sortedKeys = Object.keys(kvs).sort();
       sortedKeys.forEach((key) => {
@@ -194,8 +197,10 @@ class Master {
       });
       writeStream.end();
       writeStream.on('finish', () => {
+        console.log('Done writing to output file');
         // go to next state
         this._nextState();
+        this.workerQueue.kill();
         return callback();
       });
     });

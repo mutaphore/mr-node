@@ -97,9 +97,6 @@ function getMapSplit(call) {
     this.workerQueue.push(worker)
     return;
   }
-  console.log('DEBUG');
-  console.log(this.fileSplits);
-  console.log(jobNum);
   fs.createReadStream(this.fileName, this.fileSplits[jobNum])
     .pipe(split())  // split file by lines
     .on('data', (line) => {

@@ -1,15 +1,13 @@
 "use strict";
 
-const _      = require("lodash");
-const grpc   = require("grpc");
+const _ = require("lodash");
+const fs = require('fs');
+const grpc = require("grpc");
 const config = require("config");
-const uuid   = require("uuid");
-const async  = require("async");
-
+const uuid = require("uuid");
+const async = require("async");
 const rpcFunc = require("./workerrpc");
-const mr      = require("../lib/mapreduce");
-const Reader  = require("../lib/reader");
-const Writer  = require("../lib/writer");
+const mr = require("../lib/mapreduce");
 
 const MASTER_PROTO_PATH = "./protos/master.proto";
 const WORKER_PROTO_PATH = "./protos/worker.proto";
@@ -103,77 +101,14 @@ class Worker {
     const rpcStream = this.master.getMapSplit(data);
     let keyValues = [];
     rpcStream.on('data', (split) => {
+      // TODO: improve efficiency of this by piping to a transformer stream instead of storing key values in memory
       keyValues = keyValues.concat(mr.mapFunc(fileName, split.line));
     });
     rpcStream.on('end', () => {
       // write to appropriate reducer file stream
       const streams = [];
       for (let i = 0; i < this.nReduce; i++) {
-        const writer = new Writer({
-          targetType: 'fs',
-          targetOptions: {
-            path: mr.reduceFileName(fileName, jobNum, i)
-          }
-        });
-        const writeStream = writer.createWriteStream();
-        streams.push(writeStream);
-      }
-      keyValues.forEach((kv) => {
-        const reduceNum = this._hashCode(Object.keys(kv)[0]) % this.nReduce;
-        streams[reduceNum].write(JSON.stringify(kv) + '\n');
-      });
-      // end all write streams
-      streams.forEach((s) => {
-        s.end();
-      });
-      // signal to master this map job is done
-      const data = {
-        worker_id: this.workerId,
-        job_number: jobNum,
-        operation: mr.OP.MAP,
-        error: ""
-      };
-      this.master.jobDone(data, (err, resp) => {
-        if (err) {
-          console.log("Failed to communicate with master");
-          process.exit(2);
-        }
-        if (!resp) {
-          console.log("No response received from master");
-          process.exit(2);
-        }
-        console.log(`map ${jobNum} done`);
-      });
-    });
-  }
-
-  _doMapByFileName(jobNum, fileName) {
-    console.log(`working on map ${jobNum}`);
-    const reader = new Reader({
-      sourceType: 'fs',
-      sourceOptions: {
-        path: mr.mapFileName(fileName, jobNum)
-      } 
-    });
-    const readStream = reader.createReadStream();
-    let keyValues = [];
-    readStream.on('line', (line) => {
-      // run map function
-      keyValues = keyValues.concat(mr.mapFunc(fileName, line));
-      // TODO: improve efficiency of this by piping to a transformer stream
-      // instead of storing key values in memory
-    });
-    readStream.on('close', () => {
-      // write to appropriate reducer file stream
-      const streams = [];
-      for (let i = 0; i < this.nReduce; i++) {
-        const writer = new Writer({
-          targetType: 'fs',
-          targetOptions: {
-            path: mr.reduceFileName(fileName, jobNum, i)
-          }
-        });
-        const writeStream = writer.createWriteStream();
+        const writeStream = fs.createWriteStream(mr.reduceFileName(fileName, jobNum, i));
         streams.push(writeStream);
       }
       keyValues.forEach((kv) => {
@@ -214,7 +149,6 @@ class Worker {
       }
       const mapperAddrs = resp.mapper_addresses;
       // iterate through all map jobs for this reducer
-      
       const tasks = [];
       const kvs = {};
       for (let mapJobNum = 0; mapJobNum < this.nMap; mapJobNum++) {
@@ -247,13 +181,7 @@ class Worker {
       async.parallel(tasks, (err) => {
         // TODO: handle err properly
         // sort the keys and run reducer function
-        const writer = new Writer({
-          targetType: 'fs',
-          targetOptions: {
-            path: mr.mergeFileName(fileName, jobNum)
-          }
-        });
-        const writeStream = writer.createWriteStream();
+        const writeStream = fs.createWriteStream(mr.mergeFileName(fileName, jobNum));
         const sortedKeys = Object.keys(kvs).sort();
         sortedKeys.forEach((key) => {
           const res = mr.reduceFunc(key, kvs[key]);
@@ -280,72 +208,6 @@ class Worker {
           }
           console.log(`reduce ${jobNum} done`);
         });
-      });
-    });
-  }
-
-  _doReduceByFileName(jobNum, fileName) {
-    console.log(`working on reduce ${jobNum}`);
-    // iterate through all map jobs for this reducer
-    const writer = new Writer({
-      targetType: 'fs',
-      targetOptions: {
-        path: mr.mergeFileName(fileName, jobNum)
-      }
-    });
-    const writeStream = writer.createWriteStream();
-    const tasks = [];
-    const kvs = {};
-    for (let mapJobNum = 0; mapJobNum < this.nMap; mapJobNum++) {
-      tasks.push((callback) => {
-        const reader = new Reader({
-          sourceType: 'fs',
-          sourceOptions: {
-            path: mr.reduceFileName(fileName, mapJobNum, jobNum)
-          }
-        });
-        const readStream = reader.createReadStream();
-        readStream.on('line', (line) => {
-          const interKv = JSON.parse(line);
-          const key = Object.keys(interKv)[0];
-          const value = interKv[key];
-          if (!kvs[key]) {
-            kvs[key] = [value];
-          } else {
-            kvs[key].push(value);
-          }
-        });
-        readStream.on('close', callback);
-      });
-    }
-    async.parallel(tasks, (err) => {
-      // TODO: handle err properly
-      // sort the keys and run reducer function
-      const sortedKeys = Object.keys(kvs).sort();
-      sortedKeys.forEach((key) => {
-        const res = mr.reduceFunc(key, kvs[key]);
-        const kv = {};
-        kv[key] = res;
-        writeStream.write(JSON.stringify(kv) + '\n');
-      });
-      writeStream.end();
-      // signal to master this reduce job is done
-      const data = {
-        worker_id: this.workerId,
-        job_number: jobNum,
-        operation: mr.OP.REDUCE,
-        error: err ? err.message : ""
-      };
-      this.master.jobDone(data, (err, resp) => {
-        if (err) {
-          console.log("Failed to communicate with master");
-          process.exit(2);
-        }
-        if (!resp) {
-          console.log("No response received from master");
-          process.exit(2);
-        }
-        console.log(`reduce ${jobNum} done`);
       });
     });
   }
