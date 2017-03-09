@@ -160,31 +160,33 @@ class Master {
 
   _merge(callback) {
     console.log("Merging result files");
-    const streams = [];
     const tasks = [];
     const kvs = {};
-    for (let i = 0; i < this.nReduce; i++) {
-      const readStream = fs.createReadStream(mr.mergeFileName(this.fileName, i));
-      streams.push(readStream);
+    this.reduceJobsDone.forEach((reduceJob) => {
       tasks.push((callback) => {
-        readStream
-          .pipe(split())
-          .on('data', (line) => {
-            if (!line) {
-              return;
-            }
-            const kv = JSON.parse(line);
-            const key = Object.keys(kv)[0];
-            kvs[key] = kv[key];
-          })
-          .on('end', () => {
-            callback()
-          })
-          .on('error', (err) => {
-            callback(err);
-          })
+        const reducerAddr = this.workers[reduceJob.workerId].address;
+        const reducer = new this.workerDescriptor.Worker(reducerAddr, grpc.credentials.createInsecure());
+        const data = {
+          reducer_number: reduceJob.jobNum,
+          file_name: this.fileName,
+        };
+        const rpcStream = reducer.getReducerOutput(data);
+        rpcStream.on('data', (chunk) => {
+          if (!chunk.line) {
+            return;
+          }
+          const kv = JSON.parse(chunk.line);
+          const key = Object.keys(kv)[0];
+          kvs[key] = kv[key];
+        })
+        .on('end', () => {
+          callback();
+        })
+        .on('error', (err) => {
+          callback(err);
+        });
       });
-    }
+    });
     async.parallel(tasks, (err) => {
       // TODO: handle err properly
       const writeStream = fs.createWriteStream(`${this.fileName}-output`);

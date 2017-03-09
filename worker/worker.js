@@ -40,6 +40,7 @@ class Worker {
       ping: rpcFunc.ping.bind(this),
       doJob: rpcFunc.doJob.bind(this),
       getInterKeyValues: rpcFunc.getInterKeyValues.bind(this),
+      getReducerOutput: rpcFunc.getReducerOutput.bind(this),
     });
   }
 
@@ -154,7 +155,7 @@ class Worker {
       for (let mapJobNum = 0; mapJobNum < this.nMap; mapJobNum++) {
         // TODO: check if mapper is ready for transfer
         tasks.push((callback) => {
-          const mapper = new this.workerDescriptor.Worker(mapperAddrs[mapJobNum], grpc.credentials.createInsecure())
+          const mapper = new this.workerDescriptor.Worker(mapperAddrs[mapJobNum], grpc.credentials.createInsecure());
           const data = {
             mapper_number: mapJobNum,
             reducer_number: jobNum,

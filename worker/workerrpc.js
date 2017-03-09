@@ -33,7 +33,8 @@ function getInterKeyValues(call) {
   // check if intermediate local file exists
   const path = mr.reduceFileName(fileName, mapJobNum, reduceJobNum);
   if (!fs.existsSync(path)) {
-    return callback(new Error(`File '${path}' does not exist`));
+    console.error(new Error(`File '${path}' does not exist`));
+    return call.end();
   }
   fs.createReadStream(path)
     .pipe(split())
@@ -50,8 +51,32 @@ function getInterKeyValues(call) {
     });
 }
 
+function getReducerOutput(call) {
+  const reduceJobNum = call.request.reducer_number;
+  const fileName = call.request.file_name;
+  const path = mr.mergeFileName(fileName, reduceJobNum)
+  if (!fs.existsSync(path)) {
+    console.error(new Error(`File '${path}' does not exist`));
+    return call.end();
+  }
+  fs.createReadStream(path)
+    .pipe(split())
+    .on('data', (line) => {
+      call.write({ line });
+    })
+    .on('end', () => {
+      call.end();
+    })
+    .on('error', (err) => {
+      // TODO: handle error gracefully
+      console.error(err);
+      call.end();
+    });
+}
+
 module.exports = {
   ping,
   doJob,
   getInterKeyValues,
+  getReducerOutput,
 };

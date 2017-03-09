@@ -12,6 +12,9 @@ service Worker {
 
   // Get intermediate k/v pairs
   rpc GetInterKeyValues (GetInterKeyValuesRequest) returns (stream InterKeyValue) {}
+
+  // Get reducer output data by line
+  rpc GetReducerOutput (GetReducerOutputRequest) returns (stream ReducerOutput) {}
 }
 
 message PingRequest {
@@ -40,4 +43,13 @@ message GetInterKeyValuesRequest {
 
 message InterKeyValue {
   string key_value = 1;
+}
+
+message GetReducerOutputRequest {
+  int32 reducer_number = 1;
+  string file_name = 2;
+}
+
+message ReducerOutput {
+  string line = 1;
 }
