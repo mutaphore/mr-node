@@ -7,12 +7,11 @@ const async = require('async');
 const split = require('split');
 
 const rpcFunc = require("./masterrpc");
-const mr      = require("../lib/mapreduce");
-const utils   = require("../lib/utils");
-const Writer  = require("../lib/writer");
+const mr = require("../lib/mapreduce");
+const utils = require("../lib/utils");
 
 const STATE = mr.STATE;
-const OP    = mr.OP;
+const OP = mr.OP;
 
 class Master {
 
