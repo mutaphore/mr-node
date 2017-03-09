@@ -5,7 +5,7 @@ services:
     container_name: master
     build: .
     image: mr-master
-    command: ["node", "index.js", "master", "-f", "kjv12", "-m", "1", "-n", "1", "master:5000"]
+    command: ["node", "index.js", "master", "-f", "kjv12.txt", "-m", "4", "-n", "4", "master:5000"]
     ports:
       - "5000:5000"
     networks:
@@ -17,6 +17,17 @@ services:
     command: ["node", "index.js", "worker", "master:5000", "worker1:6000"]
     ports:
       - "6000:6000"
+    depends_on:
+      - master
+    networks:
+      - default
+  worker2:
+    container_name: worker2
+    build: .
+    image: mr-worker
+    command: ["node", "index.js", "worker", "master:5000", "worker2:7000"]
+    ports:
+      - "7000:7000"
     depends_on:
       - master
     networks:
