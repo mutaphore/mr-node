@@ -220,7 +220,9 @@ class Master {
       this.fileSplits = fileSplits;
       // run the server
       this.server.start();
-      console.log("Master running..");
+      console.log(`Master running at ${this.masterAddr}`);
+      console.log(`Number of mappers: ${this.nMap}`);
+      console.log(`Number of reducers: ${this.nReduce}`);
       return callback(null, this);
     });
   }

@@ -8,6 +8,9 @@
   },
   "author": "Dewei Chen",
   "license": "MIT",
+  "bin": {
+    "mr-node": "./index.js"
+  },
   "dependencies": {
     "async": "^2.1.1",
     "config": "^1.21.0",
@@ -17,5 +20,12 @@
     "uuid": "^2.0.3",
     "webhdfs": "^1.1.0",
     "yargs": "^6.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^3.17.1",
+    "eslint-config-airbnb": "^14.1.0",
+    "eslint-plugin-import": "^2.2.0",
+    "eslint-plugin-jsx-a11y": "^4.0.0",
+    "eslint-plugin-react": "^6.10.0"
   }
 }
