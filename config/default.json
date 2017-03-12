@@ -2,5 +2,8 @@
   "proto": {
     "master": "./protos/master.proto",
     "worker": "./protos/worker.proto"
+  },
+  "logger": {
+    "level": "info"
   }
 }

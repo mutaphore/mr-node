@@ -5,10 +5,11 @@ const grpc = require('grpc');
 const config = require('config');
 const async = require('async');
 const split = require('split');
-
-const rpcFunc = require("./masterrpc");
+const bunyan = require('bunyan');
+const rpc = require("./masterrpc");
 const mr = require("../lib/mapreduce");
 const utils = require("../lib/utils");
+const errors = require('../lib/errors');
 
 const STATE = mr.STATE;
 const OP = mr.OP;
@@ -32,22 +33,29 @@ class Master {
     // worker directory: workerId -> worker object
     this.workers = {};
 
+    // logger
+    this.log = bunyan.createLogger({
+      name: 'master',
+      level: config.get('logger.level'),
+    });
+
     // queues
     this.workerQueue = async.queue(this._dispatch.bind(this), 1);
+    this.workerQueue.error(err => this.log.error(err));
 
     // create master rpc server
     this.server = new grpc.Server();
     this.server.bind(masterAddr, grpc.ServerCredentials.createInsecure());
 
     // add rpc functions
-    this.masterDescriptor = grpc.load(config.get("proto.master")).masterrpc;
-    this.workerDescriptor = grpc.load(config.get("proto.worker")).workerrpc;
+    this.masterDescriptor = grpc.load(config.get('proto.master')).masterrpc;
+    this.workerDescriptor = grpc.load(config.get('proto.worker')).workerrpc;
     this.server.addProtoService(this.masterDescriptor.Master.service, {
-      ping: rpcFunc.ping.bind(this),
-      register: rpcFunc.register.bind(this),
-      jobDone: rpcFunc.jobDone.bind(this),
-      getMapSplit: rpcFunc.getMapSplit.bind(this),
-      getWorkerInfo: rpcFunc.getWorkerInfo.bind(this),
+      ping: rpc.ping.bind(this),
+      register: rpc.register.bind(this),
+      jobDone: rpc.jobDone.bind(this),
+      getMapSplit: rpc.getMapSplit.bind(this),
+      getWorkerInfo: rpc.getWorkerInfo.bind(this),
     });
   }
 
@@ -70,7 +78,7 @@ class Master {
         break;
       default:
         // shouldn't get here
-        console.log("Invalid master state");
+        this.log.error('Invalid master state');
         process.exit(1);
     }
   }
@@ -95,7 +103,7 @@ class Master {
         break;
       default:
         // shouldn't get here
-        console.log("Invalid master state");
+        this.log.error("Invalid master state");
         return callback();
     }
   }
@@ -123,7 +131,7 @@ class Master {
         return callback(err);
       }
       if (!resp || !resp.ok) {
-        return callback(new Error("Invalid response received from worker"));
+        return callback(errors.invalidResponse());
       }
       if (operation === OP.MAP) {
         this.mapJobCount = jobNum + 1;
@@ -142,7 +150,7 @@ class Master {
           this.reduceJobsDone.length === this.nReduce;
       },
       (callback) => {
-        console.log("wait for jobs to complete");
+        this.log.info('wait for jobs to complete');
         // check for job done every 1 second
         setTimeout(callback, 1000);
       },
@@ -157,7 +165,7 @@ class Master {
   }
 
   _merge(callback) {
-    console.log("Merging result files");
+    this.log.info('Merging result files');
     const tasks = [];
     const kvs = {};
     this.reduceJobsDone.forEach((reduceJob) => {
@@ -197,7 +205,7 @@ class Master {
       });
       writeStream.end();
       writeStream.on('finish', () => {
-        console.log('Done writing to output file');
+        this.log.info('Done writing to output file');
         // go to next state
         this._nextState();
         this.workerQueue.kill();
@@ -208,7 +216,7 @@ class Master {
 
   _cleanup(callback) {
     // TODO...
-    console.log("Stopping master..");
+    this.log.info('Stopping master..');
     process.exit(0);
   }
 
@@ -220,9 +228,9 @@ class Master {
       this.fileSplits = fileSplits;
       // run the server
       this.server.start();
-      console.log(`Master running at ${this.masterAddr}`);
-      console.log(`Number of mappers: ${this.nMap}`);
-      console.log(`Number of reducers: ${this.nReduce}`);
+      this.log.info(`Master running at ${this.masterAddr}`);
+      this.log.info(`Number of mappers: ${this.nMap}`);
+      this.log.info(`Number of reducers: ${this.nReduce}`);
       return callback(null, this);
     });
   }

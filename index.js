@@ -31,7 +31,7 @@ const argv = require('yargs')
     file: {
       alias: 'f',
       description: 'input file name',
-      demandOption: 'Provide an input file name',
+      demandOption: '!Provide an input file name',
     },
   })
   .command('worker', 'run MapReduce worker service', {
@@ -44,7 +44,7 @@ const argv = require('yargs')
     master: {
       alias: 'm',
       description: 'master host ipaddress:port',
-      demandOption: 'Provide master node address',
+      demandOption: '!Provide master node address',
       type: 'string',
     }
   })
@@ -60,7 +60,7 @@ function main() {
   if (command === 'master') {
     service = new Master(argv.address, argv.num_map, argv.num_red, argv.file);
   } else if (command === 'worker') {
-    service = new Worker(argv.master, argv.address);
+    service = new Worker(argv.address, argv.master);
   } else {
     console.error(`Invalid command "${command}"`);
     process.exit(1);
