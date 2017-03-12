@@ -1,8 +1,8 @@
 # MapReduce in Node
 
-[MapReduce](https://static.googleusercontent.com/media/research.google.com/en//archive/mapreduce-osdi04.pdf) framework written in Nodejs that coordinates a master node with multiple worker nodes to collectively runs map and reduce jobs in parallel. This project is a work in progress.
+A [MapReduce](https://static.googleusercontent.com/media/research.google.com/en//archive/mapreduce-osdi04.pdf) framework written in Nodejs that coordinates a master node and multiple distributed worker nodes to collectively run map and reduce jobs in parallel. Communication between nodes uses Google's RPC framework [gRPC](http://www.grpc.io/)  **This project is a work in progress**.
 
-Currently this only supports WordCount of the input file to master. I'm working on extending it to use any user defined map or reduce functions.
+Currently this only supports WordCount (counting number of occurrences of each word) of the input textfile that is passed to master. I'm working on extending this be able to use any user-defined map or reduce functions.
 
 ## Getting started
 Installing dependencies (only needed when running locally):
