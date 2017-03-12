@@ -56,7 +56,7 @@ function register(call, callback) {
           n_reduce: this.nReduce,
         });
       }
-      console.log(`Pinging worker ${workerId} at ${workerAddr}`);
+      this.log.info(`Pinging worker ${workerId} at ${workerAddr}`);
     });
   }, this.heartbeatInterval);
 }
@@ -77,7 +77,7 @@ function jobDone(call, callback) {
       });
     }
   } else {
-    console.log(`Worker job error: ${call.request.error}`);
+    this.log.error(`Worker job error: ${call.request.error}`);
   }
   // put worker back into queue
   if (worker) {

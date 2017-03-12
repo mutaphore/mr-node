@@ -155,7 +155,8 @@ class Worker {
     this.log.info(`working on reduce ${jobNum}`);
     this.master.getWorkerInfo({}, (err, resp) => {
       if (err) {
-        console.error(err);
+        this.log.error(err);
+        // TODO: handle error gracefully
         process.exit(2);
       }
       const mapperAddrs = resp.mapper_addresses;
