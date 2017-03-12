@@ -1,13 +1,15 @@
 "use strict";
 
-const _ = require("lodash");
+const _ = require('lodash');
 const fs = require('fs');
-const grpc = require("grpc");
-const config = require("config");
-const uuid = require("uuid");
-const async = require("async");
-const rpcFunc = require("./workerrpc");
-const mr = require("../lib/mapreduce");
+const grpc = require('grpc');
+const config = require('config');
+const uuid = require('uuid');
+const async = require('async');
+const bunyan = require('bunyan');
+const rpc = require('./workerrpc');
+const mr = require('../lib/mapreduce');
+const errors = require('../lib/errors');
 
 const MASTER_PROTO_PATH = "./protos/master.proto";
 const WORKER_PROTO_PATH = "./protos/worker.proto";
@@ -15,10 +17,10 @@ const WORKER_PROTO_PATH = "./protos/worker.proto";
 class Worker {
   /**
    * Create a Worker instance
-   * @param {string} masterAddr - master address with format ipaddress:port
    * @param {string} workerAddr - worker address with format ipaddress:port
+   * @param {string} masterAddr - master address with format ipaddress:port
    */
-  constructor(masterAddr, workerAddr) {
+  constructor(workerAddr, masterAddr) {
     this.workerId = uuid.v4();
     this.workerAddr = workerAddr;
     this.masterAddr = masterAddr;
@@ -27,6 +29,12 @@ class Worker {
 
     this.masterDescriptor = grpc.load(config.get("proto.master")).masterrpc;
     this.workerDescriptor = grpc.load(config.get("proto.worker")).workerrpc;
+
+    // logger
+    this.log = bunyan.createLogger({
+      name: `worker ${this.workerId}`,
+      level: config.get('logger.level'),
+    });
 
     // load master rpc service
     this.master = new this.masterDescriptor.Master(masterAddr, grpc.credentials.createInsecure());
@@ -37,10 +45,10 @@ class Worker {
 
     // add rpc functions
     this.server.addProtoService(this.workerDescriptor.Worker.service, {
-      ping: rpcFunc.ping.bind(this),
-      doJob: rpcFunc.doJob.bind(this),
-      getInterKeyValues: rpcFunc.getInterKeyValues.bind(this),
-      getReducerOutput: rpcFunc.getReducerOutput.bind(this),
+      ping: rpc.ping.bind(this),
+      doJob: rpc.doJob.bind(this),
+      getInterKeyValues: rpc.getInterKeyValues.bind(this),
+      getReducerOutput: rpc.getReducerOutput.bind(this),
     });
   }
 
@@ -55,25 +63,25 @@ class Worker {
     };
     this.master.register(data, (err, resp) => {
       if (err) {
-        console.log("Failed to register with master");
+        this.log.error(err);
         process.exit(2);
       }
       if (!resp) {
-        console.log("No response received from master");
+        this.log.error(errors.noResponseFromMaster());
         process.exit(2);
       }
       if (!resp.ok || resp.ok != true) {
-        console.log("Master error");
+        this.log.error(errors.notOkResponse());
         process.exit(2);
       }
       if (!_.isInteger(resp.n_map) || !_.isInteger(resp.n_reduce) || 
         resp.n_map <= 0 || resp.n_reduce <= 0) {
-        console.log("Invalid nmap and/or nreduce values");
+        this.log.error(errors.invalidValues());
         process.exit(2);
       }
       this.nMap = resp.n_map;
       this.nReduce = resp.n_reduce;
-      console.log(`Connected with master: ${this.masterAddr}`);
+      this.log.info(`Connected with master at ${this.masterAddr}`);
     });
   }
 
@@ -94,7 +102,7 @@ class Worker {
   }
 
   _doMapByRpcStream(jobNum, fileName) {
-    console.log(`working on map ${jobNum}`);
+    this.log.info(`Working on map ${jobNum}`);
     const data = {
       worker_id: this.workerId,
       job_number: jobNum,
@@ -129,23 +137,26 @@ class Worker {
       };
       this.master.jobDone(data, (err, resp) => {
         if (err) {
-          console.log("Failed to communicate with master");
+          this.log.error(err);
+          // TODO: retry instead of exiting
           process.exit(2);
         }
         if (!resp) {
-          console.log("No response received from master");
+          this.log.error(errors.noResponseFromMaster());
+          // TODO: retry instead of exiting
           process.exit(2);
         }
-        console.log(`map ${jobNum} done`);
+        this.log.info(`Map job ${jobNum} done`);
       });
     });
   }
 
   _doReduceByRpcStream(jobNum, fileName) {
-    console.log(`working on reduce ${jobNum}`);
+    this.log.info(`working on reduce ${jobNum}`);
     this.master.getWorkerInfo({}, (err, resp) => {
       if (err) {
-        console.error(err);
+        this.log.error(err);
+        // TODO: handle error gracefully
         process.exit(2);
       }
       const mapperAddrs = resp.mapper_addresses;
@@ -200,14 +211,14 @@ class Worker {
         };
         this.master.jobDone(data, (err, resp) => {
           if (err) {
-            console.error(err);
+            this.log.error(err);
             process.exit(2);
           }
           if (!resp) {
-            console.log("No response received from master");
+            this.log.error(errors.noResponseFromMaster());
             process.exit(2);
           }
-          console.log(`reduce ${jobNum} done`);
+          this.log.info(`Reduce job ${jobNum} done`);
         });
       });
     });
@@ -219,7 +230,7 @@ class Worker {
   start() {
     this.server.start();
     this._register();
-    console.log("Worker running..");
+    this.log.info(`Worker ${this.workerId} running at ${this.workerAddr}`);
   }
 }
 
