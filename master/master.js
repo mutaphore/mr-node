@@ -36,7 +36,7 @@ class Master {
     // logger
     this.log = bunyan.createLogger({
       name: 'master',
-      level: config.get('logger.level'),
+      level: config.get('master.logLevel'),
     });
 
     // queues
@@ -48,8 +48,8 @@ class Master {
     this.server.bind(masterAddr, grpc.ServerCredentials.createInsecure());
 
     // add rpc functions
-    this.masterDescriptor = grpc.load(config.get('proto.master')).masterrpc;
-    this.workerDescriptor = grpc.load(config.get('proto.worker')).workerrpc;
+    this.masterDescriptor = grpc.load(config.get('master.proto')).masterrpc;
+    this.workerDescriptor = grpc.load(config.get('worker.proto')).workerrpc;
     this.server.addProtoService(this.masterDescriptor.Master.service, {
       ping: rpc.ping.bind(this),
       register: rpc.register.bind(this),
@@ -150,7 +150,7 @@ class Master {
           this.reduceJobsDone.length === this.nReduce;
       },
       (callback) => {
-        this.log.info('wait for jobs to complete');
+        this.log.info('Waiting for jobs to complete...');
         // check for job done every 1 second
         setTimeout(callback, 1000);
       },
@@ -220,19 +220,32 @@ class Master {
     process.exit(0);
   }
 
+  // Master public functions 
+
+  // run master
   start(callback) {
     utils.splitFileByLines(this.fileName, this.nMap, (err, fileSplits) => {
       if (err) {
-        return callback(err);
+        return this.shutdown(err, callback)
       }
       this.fileSplits = fileSplits;
       // run the server
       this.server.start();
       this.log.info(`Master running at ${this.masterAddr}`);
+      this.log.info(`Input file ${this.fileName}`, fileSplits);
       this.log.info(`Number of mappers: ${this.nMap}`);
       this.log.info(`Number of reducers: ${this.nReduce}`);
       return callback(null, this);
     });
+  }
+
+  // stop master
+  shutdown(err, callback) {
+    if (err) {
+      this.log.error(err);
+    }
+    this.server.forceShutdown();
+    callback(err);
   }
 }
 

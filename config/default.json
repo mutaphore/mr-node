@@ -1,9 +1,11 @@
 {
-  "proto": {
-    "master": "./protos/master.proto",
-    "worker": "./protos/worker.proto"
+  "master": {
+    "proto": "./protos/master.proto",
+    "logLevel": "info"
   },
-  "logger": {
-    "level": "info"
+  "worker": {
+    "proto": "./protos/worker.proto",
+    "logLevel": "info",
+    "maxRetries": 5
   }
 }

@@ -11,9 +11,6 @@ const rpc = require('./workerrpc');
 const mr = require('../lib/mapreduce');
 const errors = require('../lib/errors');
 
-const MASTER_PROTO_PATH = "./protos/master.proto";
-const WORKER_PROTO_PATH = "./protos/worker.proto";
-
 class Worker {
   /**
    * Create a Worker instance
@@ -27,13 +24,13 @@ class Worker {
     this.nMap = null;
     this.nReduce = null;
 
-    this.masterDescriptor = grpc.load(config.get("proto.master")).masterrpc;
-    this.workerDescriptor = grpc.load(config.get("proto.worker")).workerrpc;
+    this.masterDescriptor = grpc.load(config.get("master.proto")).masterrpc;
+    this.workerDescriptor = grpc.load(config.get("worker.proto")).workerrpc;
 
     // logger
     this.log = bunyan.createLogger({
       name: `worker ${this.workerId}`,
-      level: config.get('logger.level'),
+      level: config.get('worker.logLevel'),
     });
 
     // load master rpc service
@@ -57,32 +54,46 @@ class Worker {
 
   // register worker with master
   _register() {
-    const data = {
-      worker_id: this.workerId,
-      worker_address: this.workerAddr 
-    };
-    this.master.register(data, (err, resp) => {
-      if (err) {
-        this.log.error(err);
-        process.exit(2);
+    // number of retries to connect with master
+    let retries = config.get('worker.maxRetries');
+    async.during(
+      (callback) => {
+        this.log.info(`Attempt to register with master at ${this.masterAddr}...`);
+        this.master.register({ worker_id: this.workerId, worker_address: this.workerAddr }, (err, resp) => {
+          if (err) {
+            // return callback(err);
+            return callback(null, true);
+          }
+          if (!_.isInteger(resp.n_map) || !_.isInteger(resp.n_reduce) || 
+            resp.n_map <= 0 || resp.n_reduce <= 0) {
+            return callback(errors.invalidValues());
+          }
+          if (!resp) {
+            this.log.error(errors.noResponseFromMaster());
+            return callback(null, true);
+          }
+          if (!resp.ok || resp.ok != true) {
+            this.log.error(errors.notOkResponse());
+            return callback(null, true);
+          }
+          return callback(null, false);
+        });
+      },
+      (callback) => {
+        if (--retries === 0) {
+          return callback(errors.maxNumRetries());
+        }
+        return setTimeout(callback, 500);
+      },
+      (err) => {
+        if (err) {
+          return this.shutdown(err);
+        }
+        this.nMap = resp.n_map;
+        this.nReduce = resp.n_reduce;
+        this.log.info(`Connected with master at ${this.masterAddr}`);
       }
-      if (!resp) {
-        this.log.error(errors.noResponseFromMaster());
-        process.exit(2);
-      }
-      if (!resp.ok || resp.ok != true) {
-        this.log.error(errors.notOkResponse());
-        process.exit(2);
-      }
-      if (!_.isInteger(resp.n_map) || !_.isInteger(resp.n_reduce) || 
-        resp.n_map <= 0 || resp.n_reduce <= 0) {
-        this.log.error(errors.invalidValues());
-        process.exit(2);
-      }
-      this.nMap = resp.n_map;
-      this.nReduce = resp.n_reduce;
-      this.log.info(`Connected with master at ${this.masterAddr}`);
-    });
+    );
   }
 
   // hashes a string and returns an integer
@@ -224,13 +235,22 @@ class Worker {
     });
   }
 
-  // ---- Worker public functions
+  // Worker public functions
 
   // run the worker
   start() {
     this.server.start();
-    this._register();
     this.log.info(`Worker ${this.workerId} running at ${this.workerAddr}`);
+    this._register();
+  }
+
+  // stop the worker
+  shutdown(err, callback) {
+    if (err) {
+      this.log.error(err);
+    }
+    this.server.forceShutdown();
+    callback(err);
   }
 }
 
