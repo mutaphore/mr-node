@@ -56,12 +56,12 @@ class Worker {
   _register() {
     // number of retries to connect with master
     let retries = config.get('worker.maxRetries');
+    let data = null;
     async.during(
       (callback) => {
         this.log.info(`Attempt to register with master at ${this.masterAddr}...`);
         this.master.register({ worker_id: this.workerId, worker_address: this.workerAddr }, (err, resp) => {
           if (err) {
-            // return callback(err);
             return callback(null, true);
           }
           if (!_.isInteger(resp.n_map) || !_.isInteger(resp.n_reduce) || 
@@ -76,6 +76,7 @@ class Worker {
             this.log.error(errors.notOkResponse());
             return callback(null, true);
           }
+          data = resp;
           return callback(null, false);
         });
       },
@@ -86,11 +87,11 @@ class Worker {
         return setTimeout(callback, 500);
       },
       (err) => {
-        if (err) {
+        if (err || !data) {
           return this.shutdown(err);
         }
-        this.nMap = resp.n_map;
-        this.nReduce = resp.n_reduce;
+        this.nMap = data.n_map;
+        this.nReduce = data.n_reduce;
         this.log.info(`Connected with master at ${this.masterAddr}`);
       }
     );
@@ -119,47 +120,43 @@ class Worker {
       job_number: jobNum,
     };
     const rpcStream = this.master.getMapSplit(data);
-    let keyValues = [];
-    rpcStream.on('data', (split) => {
-      // TODO: improve efficiency of this by piping to a transformer stream instead of storing key values in memory
-      keyValues = keyValues.concat(mr.mapFunc(fileName, split.line));
-    });
-    rpcStream.on('end', () => {
-      // write to appropriate reducer file stream
-      const streams = [];
-      for (let i = 0; i < this.nReduce; i++) {
-        const writeStream = fs.createWriteStream(mr.reduceFileName(fileName, jobNum, i));
-        streams.push(writeStream);
-      }
-      keyValues.forEach((kv) => {
-        const reduceNum = this._hashCode(Object.keys(kv)[0]) % this.nReduce;
-        streams[reduceNum].write(JSON.stringify(kv) + '\n');
+    const mapStream = new mr.MapStream({ fileName: this.fileName, mapFunc: mr.mapFunc });
+    const writeStreams = [];
+    for (let i = 0; i < this.nReduce; i++) {
+      writeStreams.push(fs.createWriteStream(mr.reduceFileName(fileName, jobNum, i)));
+    }
+    rpcStream
+      .pipe(mapStream)
+      .on('data', (keyValues) => {
+        keyValues.forEach((kv) => {
+          const reduceNum = this._hashCode(Object.keys(kv)[0]) % this.nReduce;
+          writeStreams[reduceNum].write(JSON.stringify(kv) + '\n');
+        });
+      })
+      .on('end', () => {
+        // end all output streams
+        writeStreams.forEach(writeStream => writeStream.end());
+        // signal to master this map job is done
+        const data = {
+          worker_id: this.workerId,
+          job_number: jobNum,
+          operation: mr.OP.MAP,
+          error: ""
+        };
+        this.master.jobDone(data, (err, resp) => {
+          if (err) {
+            this.log.error(err);
+            // TODO: retry instead of exiting
+            process.exit(2);
+          }
+          if (!resp) {
+            this.log.error(errors.noResponseFromMaster());
+            // TODO: retry instead of exiting
+            process.exit(2);
+          }
+          this.log.info(`Map job ${jobNum} done`);
+        });
       });
-      // end all write streams
-      streams.forEach((s) => {
-        s.end();
-      });
-      // signal to master this map job is done
-      const data = {
-        worker_id: this.workerId,
-        job_number: jobNum,
-        operation: mr.OP.MAP,
-        error: ""
-      };
-      this.master.jobDone(data, (err, resp) => {
-        if (err) {
-          this.log.error(err);
-          // TODO: retry instead of exiting
-          process.exit(2);
-        }
-        if (!resp) {
-          this.log.error(errors.noResponseFromMaster());
-          // TODO: retry instead of exiting
-          process.exit(2);
-        }
-        this.log.info(`Map job ${jobNum} done`);
-      });
-    });
   }
 
   _doReduceByRpcStream(jobNum, fileName) {
