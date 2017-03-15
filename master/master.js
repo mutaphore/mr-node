@@ -150,7 +150,7 @@ class Master {
           this.reduceJobsDone.length === this.nReduce;
       },
       (callback) => {
-        this.log.info('Waiting for jobs to complete...');
+        this.log.info('Waiting for jobs to complete');
         // check for job done every 1 second
         setTimeout(callback, 1000);
       },
@@ -216,7 +216,7 @@ class Master {
 
   _cleanup(callback) {
     // TODO...
-    this.log.info('Stopping master..');
+    this.log.info('Stopping master');
     process.exit(0);
   }
 

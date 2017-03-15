@@ -59,7 +59,7 @@ class Worker {
     let data = null;
     async.during(
       (callback) => {
-        this.log.info(`Attempt to register with master at ${this.masterAddr}...`);
+        this.log.info(`Attempt to register with master at ${this.masterAddr}`);
         this.master.register({ worker_id: this.workerId, worker_address: this.workerAddr }, (err, resp) => {
           if (err) {
             return callback(null, true);
@@ -120,22 +120,13 @@ class Worker {
       job_number: jobNum,
     };
     const rpcStream = this.master.getMapSplit(data);
-    const mapStream = new mr.MapStream({ fileName: this.fileName, mapFunc: mr.mapFunc });
-    const writeStreams = [];
-    for (let i = 0; i < this.nReduce; i++) {
-      writeStreams.push(fs.createWriteStream(mr.reduceFileName(fileName, jobNum, i)));
-    }
+    const mapStream = new mr.MapStream({ fileName: this.fileName });
+    const interFileWriteStream = new mr.InterFileWriteStream({ fileName, jobNum, nReduce: this.nReduce })
+
     rpcStream
       .pipe(mapStream)
-      .on('data', (keyValues) => {
-        keyValues.forEach((kv) => {
-          const reduceNum = this._hashCode(Object.keys(kv)[0]) % this.nReduce;
-          writeStreams[reduceNum].write(JSON.stringify(kv) + '\n');
-        });
-      })
-      .on('end', () => {
-        // end all output streams
-        writeStreams.forEach(writeStream => writeStream.end());
+      .pipe(interFileWriteStream)
+      .on('finish', () => {
         // signal to master this map job is done
         const data = {
           worker_id: this.workerId,
